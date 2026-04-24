@@ -1,0 +1,10 @@
+export const GAME_CONTAINER_ID = "game-root";
+export const GAME_WIDTH = 960;
+export const GAME_HEIGHT = 540;
+export const BOSS_DURATION_MS = 15_000;
+export const BOSS_APPEAR_INTERVAL_MS = 30_000;
+export const PLAYER_SPEED = 260;
+export const MONSTER_SPEED = 120;
+export const LEVEL_UP_INTERVAL_MS = 8_000;
+export const BASE_EXP_REWARD = 6;
+export const BOSS_PHASE_EXP_GROWTH_RATE = 0.2;

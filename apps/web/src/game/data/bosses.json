@@ -1,0 +1,9 @@
+[
+  {
+    "name": "NullPointer King",
+    "maxHp": 250,
+    "damage": 12,
+    "moveSpeed": 90,
+    "expCoefficient": 12
+  }
+]

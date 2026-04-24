@@ -1,0 +1,16 @@
+[
+  {
+    "name": "Memory Leak Slime",
+    "maxHp": 35,
+    "damage": 5,
+    "moveSpeed": 120,
+    "expCoefficient": 1.2
+  },
+  {
+    "name": "Null Bug",
+    "maxHp": 25,
+    "damage": 4,
+    "moveSpeed": 140,
+    "expCoefficient": 0.9
+  }
+]

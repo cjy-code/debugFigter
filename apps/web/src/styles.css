@@ -1,0 +1,105 @@
+:root {
+  font-family: "Pretendard", "Noto Sans KR", sans-serif;
+  color: #f8fafc;
+  background-color: #020617;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+}
+
+.app {
+  min-height: 100vh;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  place-items: center;
+  gap: 12px;
+  padding: 20px;
+  background:
+    radial-gradient(circle at 10% 20%, rgba(34, 211, 238, 0.15), transparent 30%),
+    radial-gradient(circle at 90% 80%, rgba(248, 113, 113, 0.18), transparent 30%),
+    #020617;
+}
+
+.hud {
+  width: 960px;
+  display: grid;
+  grid-template-columns: 1fr 150px 170px 300px;
+  align-items: center;
+  gap: 10px;
+}
+
+.hud h1 {
+  margin: 0;
+  font-size: 28px;
+  white-space: nowrap;
+}
+
+.hudItem {
+  font-size: 16px;
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.hudItemEnemy {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.gameContainer {
+  width: 960px;
+  height: 540px;
+  border: 1px solid #334155;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  gap: 14px;
+  background: rgba(2, 6, 23, 0.78);
+}
+
+.overlay h2 {
+  margin: 0;
+  text-align: center;
+}
+
+.overlay p {
+  margin: 0;
+  text-align: center;
+  color: #cbd5e1;
+}
+
+.options {
+  display: grid;
+  gap: 10px;
+}
+
+.options button {
+  border: 1px solid #334155;
+  border-radius: 8px;
+  background: #1e293b;
+  color: #f8fafc;
+  font-size: 16px;
+  padding: 10px 14px;
+  cursor: pointer;
+}
+
+.options button:hover {
+  background: #334155;
+}
+
+.options button.isSelected {
+  border-color: #22d3ee;
+  background: #0f172a;
+  box-shadow: 0 0 0 1px #22d3ee inset;
+}
