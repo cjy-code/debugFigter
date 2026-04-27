@@ -2,6 +2,7 @@ import Phaser from "phaser";
 import { GAME_HEIGHT, GAME_WIDTH } from "../constants/gameConstants";
 import { BootScene } from "../scenes/BootScene";
 import { BossScene } from "../scenes/BossScene";
+import { CharacterSelectScene } from "../scenes/CharacterSelectScene";
 import { LobbyScene } from "../scenes/LobbyScene";
 import { ResultScene } from "../scenes/ResultScene";
 import { StageScene } from "../scenes/StageScene";
@@ -35,8 +36,11 @@ export class GameApp {
           debug: false,
         },
       },
+      pixelArt: true,
+      antialias: false,
+      roundPixels: true,
       backgroundColor: "#0f172a",
-      scene: [BootScene, LobbyScene, StageScene, BossScene, ResultScene],
+      scene: [BootScene, LobbyScene, CharacterSelectScene, StageScene, BossScene, ResultScene],
     });
   }
 
