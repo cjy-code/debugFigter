@@ -1,0 +1,77 @@
+{
+  "version": "2026-04-27",
+  "style": "bit-crayon-paperdoll",
+  "source": {
+    "type": "single-board-extraction",
+    "status": "provisional"
+  },
+  "reference": {
+    "conceptBoard": "/assets/characters/_reference/bit-crayon-paperdoll-concept.png"
+  },
+  "classes": {
+    "warrior": {
+      "idle": {
+        "spriteSheet": "/assets/characters/warrior/warrior_idle_v01.v04.png",
+        "frameWidth": 96,
+        "frameHeight": 96,
+        "frameCount": 8,
+        "fps": 8
+      },
+      "parts": {
+        "head": "/assets/characters/warrior/warrior_head_v01.v04.png",
+        "body": "/assets/characters/warrior/warrior_body_v01.v04.png",
+        "armL": "/assets/characters/warrior/warrior_armL_v01.v04.png",
+        "armR": "/assets/characters/warrior/warrior_armR_v01.v04.png",
+        "weapon": "/assets/characters/warrior/warrior_weapon_v01.v04.png"
+      }
+    },
+    "mage": {
+      "idle": {
+        "spriteSheet": "/assets/characters/mage/mage_idle_v01.v04.png",
+        "frameWidth": 96,
+        "frameHeight": 96,
+        "frameCount": 8,
+        "fps": 8
+      },
+      "parts": {
+        "head": "/assets/characters/mage/mage_head_v01.v04.png",
+        "body": "/assets/characters/mage/mage_body_v01.v04.png",
+        "armL": "/assets/characters/mage/mage_armL_v01.v04.png",
+        "armR": "/assets/characters/mage/mage_armR_v01.v04.png",
+        "weapon": "/assets/characters/mage/mage_weapon_v01.v04.png"
+      }
+    },
+    "archer": {
+      "idle": {
+        "spriteSheet": "/assets/characters/archer/archer_idle_v01.v04.png",
+        "frameWidth": 96,
+        "frameHeight": 96,
+        "frameCount": 8,
+        "fps": 8
+      },
+      "parts": {
+        "head": "/assets/characters/archer/archer_head_v01.v04.png",
+        "body": "/assets/characters/archer/archer_body_v01.v04.png",
+        "armL": "/assets/characters/archer/archer_armL_v01.v04.png",
+        "armR": "/assets/characters/archer/archer_armR_v01.v04.png",
+        "weapon": "/assets/characters/archer/archer_weapon_v01.v04.png"
+      }
+    }
+  },
+  "sharedFx": {
+    "hit": {
+      "spriteSheet": "/assets/characters/shared/fx_hit_v01.v04.png",
+      "frameWidth": 96,
+      "frameHeight": 96,
+      "frameCount": 5,
+      "fps": 10
+    },
+    "glitchSlash": {
+      "spriteSheet": "/assets/characters/shared/fx_glitch_slash_v01.v04.png",
+      "frameWidth": 96,
+      "frameHeight": 96,
+      "frameCount": 5,
+      "fps": 10
+    }
+  }
+}
