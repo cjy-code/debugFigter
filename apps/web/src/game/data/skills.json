@@ -1,8 +1,50 @@
 [
-  "컴파일 슬래시 +20%",
-  "Null 포격 해금",
-  "대시 쿨다운 -15%",
-  "치명타 확률 +10%",
-  "흡혈 5% 획득",
-  "화염 탄환 부여"
+  {
+    "id": "nullPointer",
+    "type": "skill",
+    "targetId": "nullPointer",
+    "name": "Null Pointer",
+    "description": "랜덤 위치에 예외 폭발을 일으킵니다.",
+    "maxLevel": 5
+  },
+  {
+    "id": "memoryLeak",
+    "type": "skill",
+    "targetId": "memoryLeak",
+    "name": "Memory Leak",
+    "description": "지속 데미지를 주는 메모리 장판을 생성합니다.",
+    "maxLevel": 5
+  },
+  {
+    "id": "threadCrash",
+    "type": "skill",
+    "targetId": "threadCrash",
+    "name": "Thread Crash",
+    "description": "전방으로 관통하는 스레드 충돌을 실행합니다.",
+    "maxLevel": 5
+  },
+  {
+    "id": "cpuBoost",
+    "type": "passive",
+    "targetId": "cpuBoost",
+    "name": "CPU Boost",
+    "description": "자동 공격 실행 속도가 증가합니다.",
+    "maxLevel": 5
+  },
+  {
+    "id": "garbageCollector",
+    "type": "passive",
+    "targetId": "garbageCollector",
+    "name": "Garbage Collector",
+    "description": "주기적으로 체력을 회복할 수 있는 기반 패시브입니다.",
+    "maxLevel": 5
+  },
+  {
+    "id": "stackOverflow",
+    "type": "passive",
+    "targetId": "stackOverflow",
+    "name": "Stack Overflow",
+    "description": "스킬 범위가 증가합니다.",
+    "maxLevel": 5
+  }
 ]

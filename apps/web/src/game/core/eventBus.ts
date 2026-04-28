@@ -1,10 +1,14 @@
+import type { KarmaCounts, LevelUpOption, StatStacks } from "../shared/gameTypes";
+
 type EventMap = {
   "scene:changed": string;
-  "levelup:shown": { options: string[] };
+  "levelup:shown": { options: LevelUpOption[] };
   "levelup:closed": undefined;
-  "levelup:selected": { optionName: string };
+  "levelup:selected": { option: LevelUpOption };
   "combat:target-updated": { name: string; hp: number; maxHp: number } | null;
   "player:direction-updated": { label: string };
+  "player:stats-updated": { level: number; statStacks: StatStacks };
+  "player:karma-updated": { karmaCounts: KarmaCounts };
   "run:ended": { result: "clear" | "dead" };
 };
 

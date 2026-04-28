@@ -12,6 +12,15 @@ export const PLAYER_IDLE_ANIMATION_KEY_BY_CLASS: Record<PlayerClassType, string>
   archer: "anim-player-idle-archer",
 };
 
+export const WARRIOR_SELECT_TEXTURE_KEYS = {
+  idleSheet: "warrior-select-idle-sheet",
+  portrait: "warrior-select-portrait",
+};
+
+export const WARRIOR_SELECT_ANIMATION_KEY = "anim-warrior-select-idle";
+export const WARRIOR_STAGE_TEXTURE_KEY = "warrior-stage-idle-sheet";
+export const WARRIOR_STAGE_ANIMATION_KEY = "anim-warrior-stage-idle";
+
 export const CHARACTER_SPRITE_SHEET_CONFIG = {
   frameWidth: 96,
   frameHeight: 96,

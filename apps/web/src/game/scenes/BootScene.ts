@@ -7,6 +7,10 @@ import {
   STAGE_PARALLAX_TEXTURE_KEYS,
   SHARED_FX_SHEET_CONFIG,
   SHARED_FX_TEXTURE_KEYS,
+  WARRIOR_SELECT_ANIMATION_KEY,
+  WARRIOR_SELECT_TEXTURE_KEYS,
+  WARRIOR_STAGE_ANIMATION_KEY,
+  WARRIOR_STAGE_TEXTURE_KEY,
 } from "../constants/gameConstants";
 import { eventBus } from "../core/eventBus";
 
@@ -31,6 +35,26 @@ export class BootScene extends Phaser.Scene {
         frameWidth: CHARACTER_SPRITE_SHEET_CONFIG.frameWidth,
         frameHeight: CHARACTER_SPRITE_SHEET_CONFIG.frameHeight,
       },
+    );
+    this.load.spritesheet(
+      WARRIOR_SELECT_TEXTURE_KEYS.idleSheet,
+      "/assets/characters/warrior/processed/warrior_idle_card_sheet.png",
+      {
+        frameWidth: CHARACTER_SPRITE_SHEET_CONFIG.frameWidth,
+        frameHeight: CHARACTER_SPRITE_SHEET_CONFIG.frameHeight,
+      },
+    );
+    this.load.spritesheet(
+      WARRIOR_STAGE_TEXTURE_KEY,
+      "/assets/characters/warrior/processed/warrior_idle_card_sheet.png",
+      {
+        frameWidth: CHARACTER_SPRITE_SHEET_CONFIG.frameWidth,
+        frameHeight: CHARACTER_SPRITE_SHEET_CONFIG.frameHeight,
+      },
+    );
+    this.load.image(
+      WARRIOR_SELECT_TEXTURE_KEYS.portrait,
+      "/assets/characters/warrior/processed/warrior_select_portrait.png",
     );
     this.load.spritesheet(
       PLAYER_IDLE_TEXTURE_KEY_BY_CLASS.mage,
@@ -84,6 +108,8 @@ export class BootScene extends Phaser.Scene {
    */
   create() {
     this.registerCharacterAnimations();
+    this.registerWarriorSelectAnimation();
+    this.registerWarriorStageAnimation();
     eventBus.emit("scene:changed", "Boot");
     this.scene.start("LobbyScene");
   }
@@ -109,6 +135,46 @@ export class BootScene extends Phaser.Scene {
         frameRate: CHARACTER_SPRITE_SHEET_CONFIG.fps,
         repeat: -1,
       });
+    });
+  }
+
+  /**
+   * @date 2026-04-28
+   * @desc 캐릭터 선택창 전사 카드용 idle 애니메이션을 등록한다.
+   */
+  private registerWarriorSelectAnimation() {
+    if (this.anims.exists(WARRIOR_SELECT_ANIMATION_KEY)) {
+      return;
+    }
+
+    this.anims.create({
+      key: WARRIOR_SELECT_ANIMATION_KEY,
+      frames: this.anims.generateFrameNumbers(WARRIOR_SELECT_TEXTURE_KEYS.idleSheet, {
+        start: 0,
+        end: CHARACTER_SPRITE_SHEET_CONFIG.frameCount - 1,
+      }),
+      frameRate: CHARACTER_SPRITE_SHEET_CONFIG.fps,
+      repeat: -1,
+    });
+  }
+
+  /**
+   * @date 2026-04-28
+   * @desc 플레이 화면 전사 캐릭터용 idle 애니메이션을 등록한다.
+   */
+  private registerWarriorStageAnimation() {
+    if (this.anims.exists(WARRIOR_STAGE_ANIMATION_KEY)) {
+      return;
+    }
+
+    this.anims.create({
+      key: WARRIOR_STAGE_ANIMATION_KEY,
+      frames: this.anims.generateFrameNumbers(WARRIOR_STAGE_TEXTURE_KEY, {
+        start: 0,
+        end: CHARACTER_SPRITE_SHEET_CONFIG.frameCount - 1,
+      }),
+      frameRate: CHARACTER_SPRITE_SHEET_CONFIG.fps,
+      repeat: -1,
     });
   }
 }

@@ -1,16 +1,58 @@
 ﻿import Phaser from "phaser";
 import {
   BOSS_APPEAR_INTERVAL_MS,
+  BOSS_DEFAULT_EXP_COEFFICIENT,
+  BOSS_DEFAULT_MAX_HP,
+  BOSS_PHASE_EXP_GROWTH_RATE,
+  BOSS_PHASE_HP_INCREMENT,
+  BOSS_REAPPEAR_INTERVAL_MS,
+  BOSS_STAGE_CLEAR_RADIUS,
+  BOSS_STAGE_COLOR,
+  BOSS_STAGE_DEPTH,
+  BOSS_STAGE_HEIGHT,
+  BOSS_STAGE_PUSH_FORCE,
+  BOSS_STAGE_SPAWN_DISTANCE,
+  BOSS_STAGE_WIDTH,
+  BOSS_WARNING_DURATION_MS,
   DEFAULT_PLAYER_CLASS_TYPE,
+  FINAL_BOSS_PHASE,
   GAME_HEIGHT,
   GAME_WIDTH,
   INITIAL_MONSTER_SPAWN_DELAY_MS,
   LOOK_POINTER_MIN_DISTANCE,
   LOOK_DIRECTION_SMOOTHING_FACTOR,
-  MONSTER_SPAWN_INTERVAL_MS,
   MONSTER_SPEED,
   MONSTER_KNOCKBACK_DURATION_MS,
   MONSTER_KNOCKBACK_FORCE,
+  AUTO_SKILL_COOLDOWN_MS,
+  BASE_EXP_REWARD,
+  EXP_ORB_ABSORB_DISTANCE,
+  EXP_ORB_COLOR,
+  EXP_ORB_DEPTH,
+  EXP_ORB_MAX_COUNT,
+  EXP_ORB_MAX_MOVE_SPEED,
+  EXP_ORB_MIN_MOVE_SPEED,
+  EXP_ORB_MOVE_SPEED_FACTOR,
+  EXP_ORB_RADIUS,
+  EXP_ORB_SCATTER_RADIUS,
+  EXP_ORB_STROKE_COLOR,
+  EXP_ORB_STROKE_WIDTH,
+  KARMA_BASIC_DROP_RATE,
+  KARMA_BASIC_MAX_COUNT,
+  KARMA_COLOR_BY_ID,
+  KARMA_ORB_ABSORB_DISTANCE,
+  KARMA_ORB_DEPTH,
+  KARMA_ORB_MAX_MOVE_SPEED,
+  KARMA_ORB_MIN_MOVE_SPEED,
+  KARMA_ORB_MOVE_SPEED_FACTOR,
+  KARMA_ORB_RADIUS,
+  KARMA_ORB_SCATTER_RADIUS,
+  KARMA_ORB_STROKE_COLOR,
+  KARMA_ORB_STROKE_WIDTH,
+  KARMA_TRANSFORM_SHARD_MAX_COUNT,
+  ELITE_MONSTER_MAX_INTERVAL_MS,
+  ELITE_MONSTER_MIN_INTERVAL_MS,
+  ELITE_MONSTER_START_MS,
   PLAYER_ATTACK_EFFECT_ALPHA,
   PLAYER_ATTACK_EFFECT_DURATION_MS,
   PLAYER_ATTACK_EFFECT_HEIGHT,
@@ -18,8 +60,6 @@ import {
   PLAYER_ATTACK_EFFECT_TWEEN_SCALE_X,
   PLAYER_ATTACK_EFFECT_TWEEN_SCALE_Y,
   PLAYER_ATTACK_EFFECT_WIDTH,
-  PLAYER_ATTACK_COOLDOWN_MS,
-  PLAYER_ATTACK_TARGET_DOT_THRESHOLD,
   PLAYER_COLLISION_RADIUS,
   PLAYER_HEIGHT,
   PLAYER_HEAD_LERP_FACTOR,
@@ -32,10 +72,13 @@ import {
   PLAYER_KNOCKBACK_DURATION_MS,
   PLAYER_KNOCKBACK_FORCE,
   PLAYER_POST_HIT_COLLISION_GRACE_MS,
-  PLAYER_SPEED,
   PLAYER_WIDTH,
   PLAYER_IDLE_ANIMATION_KEY_BY_CLASS,
   PLAYER_IDLE_TEXTURE_KEY_BY_CLASS,
+  WARRIOR_STAGE_DISPLAY_HEIGHT,
+  WARRIOR_STAGE_DISPLAY_WIDTH,
+  WARRIOR_STAGE_ANIMATION_KEY,
+  WARRIOR_STAGE_TEXTURE_KEY,
   STAGE_PARALLAX_SCROLL_FACTORS,
   STAGE_PARALLAX_TEXTURE_KEYS,
   WORLD_HEIGHT,
@@ -88,10 +131,20 @@ import {
   STAGE_MINIMAP_BG_COLOR,
   STAGE_MINIMAP_BORDER_COLOR,
   STAGE_MINIMAP_BORDER_WIDTH,
+  STAGE_MINIMAP_BOSS_MARKER_COLOR,
+  STAGE_MINIMAP_BOSS_MARKER_RADIUS,
+  STAGE_MINIMAP_ELITE_MARKER_COLOR,
+  STAGE_MINIMAP_ELITE_MARKER_RADIUS,
+  STAGE_MINIMAP_ENEMY_MARKER_COLOR,
+  STAGE_MINIMAP_ENEMY_MARKER_RADIUS,
+  STAGE_MINIMAP_EXP_MARKER_COLOR,
+  STAGE_MINIMAP_EXP_MARKER_RADIUS,
   STAGE_MINIMAP_GRID_COLOR,
   STAGE_MINIMAP_HEIGHT,
   STAGE_MINIMAP_MARKER_COLOR,
   STAGE_MINIMAP_MARKER_RADIUS,
+  STAGE_MINIMAP_MAX_EXP_MARKERS,
+  STAGE_MINIMAP_OBJECT_VISIBLE_RADIUS,
   STAGE_MINIMAP_WIDTH,
   STAGE_MINIMAP_X,
   STAGE_MINIMAP_Y,
@@ -109,11 +162,18 @@ import {
   STAGE_TIMER_Y,
 } from "../constants/uiLayoutConstants";
 import { eventBus } from "../core/eventBus";
+import bosses from "../data/bosses.json";
 import { CombatSystem } from "../systems/CombatSystem";
 import { ProgressionSystem } from "../systems/ProgressionSystem";
 import { SpawnSystem } from "../systems/SpawnSystem";
 import { SynergySystem } from "../systems/SynergySystem";
-import type { PlayerClassType, PlayerState } from "../shared/gameTypes";
+import type {
+  BasicKarmaId,
+  KarmaId,
+  LevelUpOption,
+  PlayerClassType,
+  PlayerState,
+} from "../shared/gameTypes";
 
 type StageSceneInitData = {
   playerClassType?: PlayerClassType;
@@ -129,6 +189,25 @@ type MoveKeys = {
   down: Phaser.Input.Keyboard.Key;
   left: Phaser.Input.Keyboard.Key;
   right: Phaser.Input.Keyboard.Key;
+};
+
+type ExpOrb = Phaser.GameObjects.Arc;
+
+type KarmaOrb = Phaser.GameObjects.Arc;
+
+type MinimapPoint = {
+  x: number;
+  y: number;
+  radius: number;
+  color: number;
+};
+
+type BossData = {
+  name: string;
+  maxHp: number;
+  damage: number;
+  moveSpeed: number;
+  expCoefficient: number;
 };
 
 /**
@@ -149,23 +228,30 @@ export class StageScene extends Phaser.Scene {
   private expBarBackground!: Phaser.GameObjects.Rectangle;
   private expBarFill!: Phaser.GameObjects.Rectangle;
   private expBarText!: Phaser.GameObjects.Text;
+  private bossWarningText: Phaser.GameObjects.Text | null = null;
   private minimapBackground!: Phaser.GameObjects.Rectangle;
   private minimapMarker!: Phaser.GameObjects.Arc;
   private minimapGridLines: Phaser.GameObjects.Line[] = [];
+  private minimapEnemyMarkers: Phaser.GameObjects.Arc[] = [];
+  private minimapExpMarkers: Phaser.GameObjects.Arc[] = [];
   private moveKeys!: MoveKeys;
   private lookKeys!: Phaser.Types.Input.Keyboard.CursorKeys;
-  private attackKey!: Phaser.Input.Keyboard.Key;
   private monsters: Phaser.GameObjects.Rectangle[] = [];
+  private expOrbs: ExpOrb[] = [];
+  private karmaOrbs: KarmaOrb[] = [];
   private nextSpawnTimestamp = 0;
+  private nextEliteSpawnElapsedMs = ELITE_MONSTER_START_MS;
   private nextPlayerHitTimestamp = 0;
-  private attackCooldownTimestamp = 0;
+  private nextAutoSkillTimestamp = 0;
   private playerInvulnerableUntil = 0;
   private playerKnockbackUntil = 0;
   private isLevelUpOpen = false;
   private survivalStartTimestamp = 0;
   private survivalElapsedOffsetMs = 0;
   private nextBossTriggerElapsedMs = BOSS_APPEAR_INTERVAL_MS;
+  private bossWarningUntilTimestamp = 0;
   private bossPhase = 1;
+  private isBossWarningActive = false;
   private initData: StageSceneInitData | undefined;
   private lastDirectionLabel = "Right";
   private readonly lookDirection = new Phaser.Math.Vector2(1, 0);
@@ -176,8 +262,8 @@ export class StageScene extends Phaser.Scene {
   private readonly synergySystem = new SynergySystem();
   private readonly playerState: PlayerState = createInitialPlayerState(DEFAULT_PLAYER_CLASS_TYPE);
   private readonly selectedOptions: string[] = [];
-  private readonly handleLevelUpSelected = (payload: { optionName: string }) => {
-    this.applyLevelUpSelection(payload.optionName);
+  private readonly handleLevelUpSelected = (payload: { option: LevelUpOption }) => {
+    this.applyLevelUpSelection(payload.option);
   };
 
   constructor() {
@@ -201,26 +287,34 @@ export class StageScene extends Phaser.Scene {
     eventBus.emit("combat:target-updated", null);
 
     this.nextSpawnTimestamp = this.time.now + INITIAL_MONSTER_SPAWN_DELAY_MS;
+    this.nextEliteSpawnElapsedMs = ELITE_MONSTER_START_MS;
     this.nextPlayerHitTimestamp = this.time.now;
-    this.attackCooldownTimestamp = this.time.now;
+    this.nextAutoSkillTimestamp = this.time.now;
     this.playerInvulnerableUntil = this.time.now;
     this.playerKnockbackUntil = this.time.now;
+    this.bossWarningUntilTimestamp = 0;
     this.survivalStartTimestamp = this.time.now;
     this.isLevelUpOpen = false;
+    this.isBossWarningActive = false;
     this.monsters = [];
+    this.expOrbs = [];
+    this.karmaOrbs = [];
+    this.bossWarningText?.destroy();
+    this.bossWarningText = null;
 
     this.applyInitData();
     this.configureWorldAndCamera();
     this.createParallaxLayers();
 
-    const playerTextureKey = PLAYER_IDLE_TEXTURE_KEY_BY_CLASS[this.playerState.classType];
-    const playerAnimationKey = PLAYER_IDLE_ANIMATION_KEY_BY_CLASS[this.playerState.classType];
+    const playerTextureKey = this.getPlayerStageTextureKey();
+    const playerAnimationKey = this.getPlayerStageAnimationKey();
+    const playerDisplaySize = this.getPlayerStageDisplaySize();
     this.player = this.physics.add.sprite(
       WORLD_WIDTH / 2,
       WORLD_HEIGHT / 2,
       playerTextureKey,
     );
-    this.player.setDisplaySize(PLAYER_WIDTH, PLAYER_HEIGHT);
+    this.player.setDisplaySize(playerDisplaySize.width, playerDisplaySize.height);
     this.player.setOrigin(0.5, 0.5);
     this.player.setDepth(20);
     this.player.anims.play(playerAnimationKey, true);
@@ -244,7 +338,6 @@ export class StageScene extends Phaser.Scene {
       right: Phaser.Input.Keyboard.KeyCodes.D,
     }) as MoveKeys;
     this.lookKeys = this.input.keyboard!.createCursorKeys();
-    this.attackKey = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
     this.timerText = this.add
       .text(STAGE_TIMER_X, STAGE_TIMER_Y, "", {
         fontSize: STAGE_TIMER_FONT_SIZE,
@@ -259,6 +352,8 @@ export class StageScene extends Phaser.Scene {
     this.updateTimerText();
     this.updateExpBar();
     this.updateMinimapMarkerAndRegion();
+    this.emitPlayerStatsUpdated();
+    this.emitPlayerKarmaUpdated();
     this.emitDirectionIfChanged(true);
     this.updateHeadVisual();
 
@@ -267,6 +362,48 @@ export class StageScene extends Phaser.Scene {
       eventBus.off("levelup:selected", this.handleLevelUpSelected);
       eventBus.emit("combat:target-updated", null);
     });
+  }
+
+  /**
+   * @date 2026-04-28
+   * @desc 현재 플레이어 직업에 맞는 인게임 스프라이트 텍스처 키를 반환한다.
+   */
+  private getPlayerStageTextureKey() {
+    if (this.playerState.classType === "warrior") {
+      return WARRIOR_STAGE_TEXTURE_KEY;
+    }
+
+    return PLAYER_IDLE_TEXTURE_KEY_BY_CLASS[this.playerState.classType];
+  }
+
+  /**
+   * @date 2026-04-28
+   * @desc 현재 플레이어 직업에 맞는 인게임 idle 애니메이션 키를 반환한다.
+   */
+  private getPlayerStageAnimationKey() {
+    if (this.playerState.classType === "warrior") {
+      return WARRIOR_STAGE_ANIMATION_KEY;
+    }
+
+    return PLAYER_IDLE_ANIMATION_KEY_BY_CLASS[this.playerState.classType];
+  }
+
+  /**
+   * @date 2026-04-28
+   * @desc 현재 플레이어 직업에 맞는 인게임 표시 크기를 반환한다.
+   */
+  private getPlayerStageDisplaySize() {
+    if (this.playerState.classType === "warrior") {
+      return {
+        width: WARRIOR_STAGE_DISPLAY_WIDTH,
+        height: WARRIOR_STAGE_DISPLAY_HEIGHT,
+      };
+    }
+
+    return {
+      width: PLAYER_WIDTH,
+      height: PLAYER_HEIGHT,
+    };
   }
 
   /**
@@ -292,7 +429,9 @@ export class StageScene extends Phaser.Scene {
 
     this.updatePlayerMovement();
     this.updateMonsterMovement();
-    this.handleAttack();
+    this.updateExpOrbs();
+    this.updateKarmaOrbs();
+    this.handleAutoSkill();
     this.spawnMonstersIfNeeded();
     this.handlePlayerCollisionDamage();
     this.handleExpBasedLevelUp();
@@ -307,30 +446,21 @@ export class StageScene extends Phaser.Scene {
     if (!this.initData || !this.initData.playerState) {
       const selectedClassType = this.initData?.playerClassType ?? DEFAULT_PLAYER_CLASS_TYPE;
       const initialPlayerState = createInitialPlayerState(selectedClassType);
-      this.playerState.classType = initialPlayerState.classType;
-      this.playerState.level = initialPlayerState.level;
-      this.playerState.exp = initialPlayerState.exp;
-      this.playerState.maxHp = initialPlayerState.maxHp;
-      this.playerState.hp = initialPlayerState.hp;
-      this.playerState.damage = initialPlayerState.damage;
-      this.playerState.attackRange = initialPlayerState.attackRange;
+      this.applyPlayerState(initialPlayerState);
       this.selectedOptions.length = 0;
       this.survivalElapsedOffsetMs = 0;
       this.nextBossTriggerElapsedMs = BOSS_APPEAR_INTERVAL_MS;
+      this.nextEliteSpawnElapsedMs = ELITE_MONSTER_START_MS;
       this.bossPhase = 1;
+      this.isBossWarningActive = false;
+      this.bossWarningUntilTimestamp = 0;
       this.lookDirection.set(1, 0);
       this.targetLookDirection.set(1, 0);
       this.lastDirectionLabel = "Right";
       return;
     }
 
-    this.playerState.classType = this.initData.playerState.classType;
-    this.playerState.level = this.initData.playerState.level;
-    this.playerState.exp = this.initData.playerState.exp;
-    this.playerState.maxHp = this.initData.playerState.maxHp;
-    this.playerState.hp = this.initData.playerState.hp;
-    this.playerState.damage = this.initData.playerState.damage;
-    this.playerState.attackRange = this.initData.playerState.attackRange;
+    this.applyPlayerState(this.initData.playerState);
     this.selectedOptions.length = 0;
     (this.initData.selectedOptions ?? []).forEach((optionName) => {
       this.selectedOptions.push(optionName);
@@ -338,10 +468,62 @@ export class StageScene extends Phaser.Scene {
     this.survivalElapsedOffsetMs = this.initData.survivalElapsedMs ?? 0;
     this.nextBossTriggerElapsedMs =
       this.initData.nextBossTriggerElapsedMs ?? BOSS_APPEAR_INTERVAL_MS;
+    this.nextEliteSpawnElapsedMs = this.computeNextEliteSpawnElapsedMs(this.getSurvivalElapsedMs());
     this.bossPhase = this.initData.bossPhase ?? 1;
+    this.isBossWarningActive = false;
+    this.bossWarningUntilTimestamp = 0;
     this.lookDirection.set(1, 0);
     this.targetLookDirection.set(1, 0);
     this.lastDirectionLabel = "Right";
+  }
+
+  /**
+   * @date 2026-04-28
+   * @desc 전달받은 플레이어 상태를 현재 스테이지 상태에 복사한다.
+   */
+  private applyPlayerState(nextPlayerState: PlayerState) {
+    this.playerState.classType = nextPlayerState.classType;
+    this.playerState.level = nextPlayerState.level;
+    this.playerState.exp = nextPlayerState.exp;
+    this.playerState.maxHp = nextPlayerState.maxHp;
+    this.playerState.hp = nextPlayerState.hp;
+    this.playerState.baseDamage = nextPlayerState.baseDamage;
+    this.playerState.damage = nextPlayerState.damage;
+    this.playerState.baseAttackRange = nextPlayerState.baseAttackRange;
+    this.playerState.attackRange = nextPlayerState.attackRange;
+    this.playerState.moveSpeed = nextPlayerState.moveSpeed;
+    this.playerState.pickupRadius = nextPlayerState.pickupRadius;
+    this.playerState.cooldownMultiplier = nextPlayerState.cooldownMultiplier;
+    this.playerState.areaMultiplier = nextPlayerState.areaMultiplier;
+    this.playerState.expMultiplier = nextPlayerState.expMultiplier;
+    this.playerState.criticalChance = nextPlayerState.criticalChance;
+    this.playerState.criticalDamageMultiplier = nextPlayerState.criticalDamageMultiplier;
+    this.playerState.attackCount = nextPlayerState.attackCount;
+    this.playerState.statStacks = { ...nextPlayerState.statStacks };
+    this.playerState.karmaCounts = { ...nextPlayerState.karmaCounts };
+    this.playerState.skills = nextPlayerState.skills.map((skill) => ({ ...skill }));
+    this.playerState.passives = nextPlayerState.passives.map((passive) => ({ ...passive }));
+  }
+
+  /**
+   * @date 2026-04-28
+   * @desc React HUD에서 사용할 플레이어 레벨과 스탯 스택 정보를 발행한다.
+   */
+  private emitPlayerStatsUpdated() {
+    eventBus.emit("player:stats-updated", {
+      level: this.playerState.level,
+      statStacks: { ...this.playerState.statStacks },
+    });
+  }
+
+  /**
+   * @date 2026-04-28
+   * @desc React HUD에서 사용할 카르마 보유량 정보를 발행한다.
+   */
+  private emitPlayerKarmaUpdated() {
+    eventBus.emit("player:karma-updated", {
+      karmaCounts: { ...this.playerState.karmaCounts },
+    });
   }
 
   /**
@@ -423,6 +605,7 @@ export class StageScene extends Phaser.Scene {
       STAGE_MINIMAP_MARKER_COLOR,
     );
     this.minimapMarker.setScrollFactor(0);
+    this.minimapMarker.setDepth(95);
 
     this.regionText = this.add
       .text(STAGE_REGION_TEXT_X, STAGE_REGION_TEXT_Y, "", {
@@ -492,15 +675,15 @@ export class StageScene extends Phaser.Scene {
     playerBody.setVelocity(0, 0);
 
     if (this.moveKeys.left.isDown) {
-      playerBody.setVelocityX(-PLAYER_SPEED);
+      playerBody.setVelocityX(-this.playerState.moveSpeed);
     } else if (this.moveKeys.right.isDown) {
-      playerBody.setVelocityX(PLAYER_SPEED);
+      playerBody.setVelocityX(this.playerState.moveSpeed);
     }
 
     if (this.moveKeys.up.isDown) {
-      playerBody.setVelocityY(-PLAYER_SPEED);
+      playerBody.setVelocityY(-this.playerState.moveSpeed);
     } else if (this.moveKeys.down.isDown) {
-      playerBody.setVelocityY(PLAYER_SPEED);
+      playerBody.setVelocityY(this.playerState.moveSpeed);
     }
   }
 
@@ -646,30 +829,59 @@ export class StageScene extends Phaser.Scene {
 
   /**
    * @date 2026-04-24
-   * @desc 怨듦꺽 ?낅젰 ???쒖꽑 諛⑺뼢 ?꾨갑 紐ъ뒪?곗뿉寃??쇳빐瑜??곸슜?쒕떎.
+   * @desc 보유 스킬 쿨다운에 맞춰 가장 가까운 몬스터에게 자동 공격을 적용한다.
    */
-  private handleAttack() {
-    if (!Phaser.Input.Keyboard.JustDown(this.attackKey)) {
+  private handleAutoSkill() {
+    if (this.playerState.skills.length === 0) {
       return;
     }
 
-    if (this.time.now < this.attackCooldownTimestamp) {
+    if (this.time.now < this.nextAutoSkillTimestamp) {
       return;
     }
 
-    this.attackCooldownTimestamp = this.time.now + PLAYER_ATTACK_COOLDOWN_MS;
+    const targetMonsters = this.findNearestAttackTargets(
+      this.playerState.attackRange,
+      this.playerState.attackCount,
+    );
+    if (targetMonsters.length === 0) {
+      return;
+    }
+
+    const targetMonster = targetMonsters[0];
+    this.updateAutoSkillLookDirection(targetMonster);
+    this.nextAutoSkillTimestamp =
+      this.time.now + AUTO_SKILL_COOLDOWN_MS * this.playerState.cooldownMultiplier;
     this.playAttackEffect();
+    targetMonsters.forEach((monster) => {
+      this.damageMonster(monster, this.playerState.damage);
+    });
+  }
 
-    const targetMonster = this.findAttackTarget(this.playerState.attackRange);
-    if (!targetMonster) {
-      return;
-    }
+  /**
+   * @date 2026-04-28
+   * @desc 자동 스킬 대상 방향으로 플레이어 시선 벡터를 갱신한다.
+   */
+  private updateAutoSkillLookDirection(targetMonster: Phaser.GameObjects.Rectangle) {
+    const deltaX = targetMonster.x - this.player.x;
+    const deltaY = targetMonster.y - this.player.y;
+    const distance = Math.hypot(deltaX, deltaY) || 1;
+    this.targetLookDirection.set(deltaX / distance, deltaY / distance);
+    this.lookDirection.set(deltaX / distance, deltaY / distance);
+  }
 
+  /**
+   * @date 2026-04-28
+   * @desc 몬스터에게 데미지와 넉백, 처치 보상을 적용한다.
+   */
+  private damageMonster(targetMonster: Phaser.GameObjects.Rectangle, baseDamage: number) {
     const currentHp = Number(targetMonster.getData("hp") ?? 0);
     const maxHp = Number(targetMonster.getData("maxHp") ?? currentHp);
     const targetName = String(targetMonster.getData("name") ?? "Monster");
     const synergy = this.synergySystem.evaluate(this.selectedOptions);
-    const dealtDamage = this.playerState.damage + synergy.bonusDamage;
+    const isCriticalHit = this.randomProviderForCriticalHit();
+    const criticalMultiplier = isCriticalHit ? this.playerState.criticalDamageMultiplier : 1;
+    const dealtDamage = Math.max(1, Math.round((baseDamage + synergy.bonusDamage) * criticalMultiplier));
     const nextHp = this.combatSystem.applyDamage(currentHp, dealtDamage);
     targetMonster.setData("hp", nextHp);
     this.applyMonsterKnockback(targetMonster);
@@ -682,17 +894,313 @@ export class StageScene extends Phaser.Scene {
 
     if (nextHp <= 0) {
       const expReward = Number(targetMonster.getData("expReward") ?? 1);
-      this.progressionSystem.grantExp(this.playerState, expReward);
+      const monsterGrade = String(targetMonster.getData("grade") ?? "normal");
+      this.dropExpOrbs(targetMonster.x, targetMonster.y, expReward);
+      this.dropKarmaOrb(targetMonster.x, targetMonster.y, monsterGrade);
+      const isBoss = Boolean(targetMonster.getData("isBoss"));
       targetMonster.destroy();
       this.monsters = this.monsters.filter((monster) => monster.active);
+      if (isBoss) {
+        this.handleBossDefeated();
+      }
     }
   }
 
   /**
-   * @date 2026-04-24
-   * @desc ?쒖꽑 諛⑺뼢 ?욎そ???덈뒗 怨듦꺽 ??곸쓣 ?먯깋?쒕떎.
+   * @date 2026-04-28
+   * @desc 몬스터 처치 위치에 경험치 보상량을 담은 구슬 1개를 생성한다.
    */
-  private findAttackTarget(attackRange: number) {
+  private dropExpOrbs(worldX: number, worldY: number, expReward: number) {
+    const scatterAngle = Phaser.Math.FloatBetween(0, Math.PI * 2);
+    const scatterDistance = Phaser.Math.FloatBetween(0, EXP_ORB_SCATTER_RADIUS);
+    const orbX = Phaser.Math.Clamp(
+      worldX + Math.cos(scatterAngle) * scatterDistance,
+      EXP_ORB_RADIUS,
+      WORLD_WIDTH - EXP_ORB_RADIUS,
+    );
+    const orbY = Phaser.Math.Clamp(
+      worldY + Math.sin(scatterAngle) * scatterDistance,
+      EXP_ORB_RADIUS,
+      WORLD_HEIGHT - EXP_ORB_RADIUS,
+    );
+    this.createExpOrb(orbX, orbY, Math.max(1, Math.round(expReward)));
+  }
+
+  /**
+   * @date 2026-04-28
+   * @desc 경험치 구슬을 생성하거나 최대 개수 초과 시 기존 구슬에 병합한다.
+   */
+  private createExpOrb(worldX: number, worldY: number, expValue: number) {
+    if (this.expOrbs.length >= EXP_ORB_MAX_COUNT) {
+      this.mergeExpOrb(worldX, worldY, expValue);
+      return;
+    }
+
+    const expOrb = this.add.circle(worldX, worldY, EXP_ORB_RADIUS, EXP_ORB_COLOR);
+    expOrb.setStrokeStyle(EXP_ORB_STROKE_WIDTH, EXP_ORB_STROKE_COLOR);
+    expOrb.setDepth(EXP_ORB_DEPTH);
+    expOrb.setData("expValue", expValue);
+    expOrb.setData("createdAt", this.time.now);
+    expOrb.setData("isAttracting", false);
+    this.expOrbs.push(expOrb);
+  }
+
+  /**
+   * @date 2026-04-28
+   * @desc 최대 구슬 수를 넘지 않도록 가장 가까운 기존 구슬에 경험치를 합산한다.
+   */
+  private mergeExpOrb(worldX: number, worldY: number, expValue: number) {
+    const targetOrb = this.findNearestExpOrb(worldX, worldY);
+    if (!targetOrb) {
+      return;
+    }
+
+    const previousExpValue = Number(targetOrb.getData("expValue") ?? 0);
+    targetOrb.setData("expValue", previousExpValue + expValue);
+    targetOrb.setScale(Math.min(1.8, targetOrb.scaleX + 0.02));
+  }
+
+  /**
+   * @date 2026-04-28
+   * @desc 기준 좌표와 가장 가까운 경험치 구슬을 반환한다.
+   */
+  private findNearestExpOrb(worldX: number, worldY: number): ExpOrb | null {
+    let nearestOrb: ExpOrb | null = null;
+    let nearestDistance = Number.POSITIVE_INFINITY;
+    for (const expOrb of this.expOrbs) {
+      const distance = Phaser.Math.Distance.Between(worldX, worldY, expOrb.x, expOrb.y);
+      if (distance < nearestDistance) {
+        nearestDistance = distance;
+        nearestOrb = expOrb;
+      }
+    }
+
+    return nearestOrb;
+  }
+
+  /**
+   * @date 2026-04-28
+   * @desc 경험치 구슬의 획득 반경 진입 후 끊기지 않는 자석 흡수를 갱신한다.
+   */
+  private updateExpOrbs() {
+    const deltaSeconds = this.game.loop.delta / 1000;
+    this.expOrbs.forEach((expOrb) => {
+      if (!expOrb.active) {
+        return;
+      }
+
+      const distanceToPlayer = Phaser.Math.Distance.Between(
+        this.player.x,
+        this.player.y,
+        expOrb.x,
+        expOrb.y,
+      );
+      const isAttracting = Boolean(expOrb.getData("isAttracting"));
+
+      if (isAttracting && distanceToPlayer <= EXP_ORB_ABSORB_DISTANCE) {
+        this.absorbExpOrb(expOrb);
+        return;
+      }
+
+      if (!isAttracting && distanceToPlayer > this.playerState.pickupRadius) {
+        return;
+      }
+
+      expOrb.setData("isAttracting", true);
+      this.moveExpOrbTowardPlayer(expOrb, distanceToPlayer, deltaSeconds);
+    });
+    this.expOrbs = this.expOrbs.filter((expOrb) => expOrb.active);
+  }
+
+  /**
+   * @date 2026-04-28
+   * @desc 경험치 구슬을 거리 비례 속도로 플레이어 방향으로 이동시킨다.
+   */
+  private moveExpOrbTowardPlayer(
+    expOrb: ExpOrb,
+    distanceToPlayer: number,
+    deltaSeconds: number,
+  ) {
+    const distance = Math.max(distanceToPlayer, 0.0001);
+    const directionX = (this.player.x - expOrb.x) / distance;
+    const directionY = (this.player.y - expOrb.y) / distance;
+    const moveSpeed = Phaser.Math.Clamp(
+      distance * EXP_ORB_MOVE_SPEED_FACTOR,
+      EXP_ORB_MIN_MOVE_SPEED,
+      EXP_ORB_MAX_MOVE_SPEED,
+    );
+
+    expOrb.x += directionX * moveSpeed * deltaSeconds;
+    expOrb.y += directionY * moveSpeed * deltaSeconds;
+  }
+
+  /**
+   * @date 2026-04-28
+   * @desc 경험치 구슬을 흡수해 플레이어 경험치로 전환한다.
+   */
+  private absorbExpOrb(expOrb: ExpOrb) {
+    const expValue = Number(expOrb.getData("expValue") ?? 1);
+    const gainedExp = Math.max(1, Math.round(expValue * this.playerState.expMultiplier));
+    this.progressionSystem.grantExp(this.playerState, gainedExp);
+    expOrb.destroy();
+  }
+
+  /**
+   * @date 2026-04-28
+   * @desc 몬스터 처치 위치에 드랍 정책에 맞는 카르마 구슬 1개를 생성한다.
+   */
+  private dropKarmaOrb(worldX: number, worldY: number, monsterGrade: string) {
+    const karmaId = this.pickDroppedKarmaId(monsterGrade);
+    const scatterAngle = Phaser.Math.FloatBetween(0, Math.PI * 2);
+    const scatterDistance = Phaser.Math.FloatBetween(0, KARMA_ORB_SCATTER_RADIUS);
+    const orbX = Phaser.Math.Clamp(
+      worldX + Math.cos(scatterAngle) * scatterDistance,
+      KARMA_ORB_RADIUS,
+      WORLD_WIDTH - KARMA_ORB_RADIUS,
+    );
+    const orbY = Phaser.Math.Clamp(
+      worldY + Math.sin(scatterAngle) * scatterDistance,
+      KARMA_ORB_RADIUS,
+      WORLD_HEIGHT - KARMA_ORB_RADIUS,
+    );
+
+    this.createKarmaOrb(orbX, orbY, karmaId);
+  }
+
+  /**
+   * @date 2026-04-28
+   * @desc 몬스터 등급과 확률에 따라 드랍할 카르마 타입을 결정한다.
+   */
+  private pickDroppedKarmaId(monsterGrade: string): KarmaId {
+    if (monsterGrade === "elite") {
+      return "transformShard";
+    }
+
+    if (Math.random() > KARMA_BASIC_DROP_RATE) {
+      return "transformShard";
+    }
+
+    return this.pickBasicKarmaId();
+  }
+
+  /**
+   * @date 2026-04-28
+   * @desc 기본 카르마 6종 중 하나를 무작위로 반환한다.
+   */
+  private pickBasicKarmaId(): BasicKarmaId {
+    const karmaIds: BasicKarmaId[] = ["fire", "water", "wind", "rock", "dark", "holy"];
+    const selectedIndex = Phaser.Math.Between(0, karmaIds.length - 1);
+    return karmaIds[selectedIndex];
+  }
+
+  /**
+   * @date 2026-04-28
+   * @desc 카르마 구슬을 생성하고 흡수 상태 데이터를 초기화한다.
+   */
+  private createKarmaOrb(worldX: number, worldY: number, karmaId: KarmaId) {
+    const karmaOrb = this.add.circle(worldX, worldY, KARMA_ORB_RADIUS, KARMA_COLOR_BY_ID[karmaId]);
+    karmaOrb.setStrokeStyle(KARMA_ORB_STROKE_WIDTH, KARMA_ORB_STROKE_COLOR);
+    karmaOrb.setDepth(KARMA_ORB_DEPTH);
+    karmaOrb.setData("karmaId", karmaId);
+    karmaOrb.setData("isAttracting", false);
+    this.karmaOrbs.push(karmaOrb);
+  }
+
+  /**
+   * @date 2026-04-28
+   * @desc 카르마 구슬의 획득 반경 진입 후 끊기지 않는 자석 흡수를 갱신한다.
+   */
+  private updateKarmaOrbs() {
+    const deltaSeconds = this.game.loop.delta / 1000;
+    this.karmaOrbs.forEach((karmaOrb) => {
+      if (!karmaOrb.active) {
+        return;
+      }
+
+      const distanceToPlayer = Phaser.Math.Distance.Between(
+        this.player.x,
+        this.player.y,
+        karmaOrb.x,
+        karmaOrb.y,
+      );
+      const isAttracting = Boolean(karmaOrb.getData("isAttracting"));
+
+      if (isAttracting && distanceToPlayer <= KARMA_ORB_ABSORB_DISTANCE) {
+        this.absorbKarmaOrb(karmaOrb);
+        return;
+      }
+
+      if (!isAttracting && distanceToPlayer > this.playerState.pickupRadius) {
+        return;
+      }
+
+      karmaOrb.setData("isAttracting", true);
+      this.moveKarmaOrbTowardPlayer(karmaOrb, distanceToPlayer, deltaSeconds);
+    });
+    this.karmaOrbs = this.karmaOrbs.filter((karmaOrb) => karmaOrb.active);
+  }
+
+  /**
+   * @date 2026-04-28
+   * @desc 카르마 구슬을 거리 비례 속도로 플레이어 방향으로 이동시킨다.
+   */
+  private moveKarmaOrbTowardPlayer(
+    karmaOrb: KarmaOrb,
+    distanceToPlayer: number,
+    deltaSeconds: number,
+  ) {
+    const distance = Math.max(distanceToPlayer, 0.0001);
+    const directionX = (this.player.x - karmaOrb.x) / distance;
+    const directionY = (this.player.y - karmaOrb.y) / distance;
+    const moveSpeed = Phaser.Math.Clamp(
+      distance * KARMA_ORB_MOVE_SPEED_FACTOR,
+      KARMA_ORB_MIN_MOVE_SPEED,
+      KARMA_ORB_MAX_MOVE_SPEED,
+    );
+
+    karmaOrb.x += directionX * moveSpeed * deltaSeconds;
+    karmaOrb.y += directionY * moveSpeed * deltaSeconds;
+  }
+
+  /**
+   * @date 2026-04-28
+   * @desc 카르마 구슬을 보유량으로 전환하고 HUD 갱신 이벤트를 발행한다.
+   */
+  private absorbKarmaOrb(karmaOrb: KarmaOrb) {
+    const karmaId = String(karmaOrb.getData("karmaId") ?? "fire") as KarmaId;
+    if (!this.canCollectKarma(karmaId)) {
+      karmaOrb.destroy();
+      return;
+    }
+
+    this.playerState.karmaCounts[karmaId] += 1;
+    karmaOrb.destroy();
+    this.emitPlayerKarmaUpdated();
+  }
+
+  /**
+   * @date 2026-04-28
+   * @desc 카르마 타입별 보유 제한에 따라 획득 가능 여부를 판단한다.
+   */
+  private canCollectKarma(karmaId: KarmaId) {
+    const maxCount =
+      karmaId === "transformShard" ? KARMA_TRANSFORM_SHARD_MAX_COUNT : KARMA_BASIC_MAX_COUNT;
+    return this.playerState.karmaCounts[karmaId] < maxCount;
+  }
+
+  /**
+   * @date 2026-04-28
+   * @desc 현재 치명타 확률을 기준으로 치명타 발생 여부를 반환한다.
+   */
+  private randomProviderForCriticalHit() {
+    return Math.random() < this.playerState.criticalChance;
+  }
+
+  /**
+   * @date 2026-04-28
+   * @desc 공격 범위 안에서 가까운 순서로 자동 공격 대상들을 찾는다.
+   */
+  private findNearestAttackTargets(attackRange: number, targetCount: number) {
     const attackCandidates = this.monsters
       .map((monster) => {
         const deltaX = monster.x - this.player.x;
@@ -702,32 +1210,20 @@ export class StageScene extends Phaser.Scene {
           return null;
         }
 
-        const directionX = deltaX / Math.max(distance, 0.0001);
-        const directionY = deltaY / Math.max(distance, 0.0001);
-        const directionDot = directionX * this.lookDirection.x + directionY * this.lookDirection.y;
-        if (directionDot < PLAYER_ATTACK_TARGET_DOT_THRESHOLD) {
-          return null;
-        }
-
         return {
           monster,
           distance,
-          directionDot,
         };
       })
-      .filter((candidate): candidate is { monster: Phaser.GameObjects.Rectangle; distance: number; directionDot: number } => {
+      .filter((candidate): candidate is { monster: Phaser.GameObjects.Rectangle; distance: number } => {
         return candidate !== null;
       });
 
     attackCandidates.sort((leftCandidate, rightCandidate) => {
-      if (leftCandidate.distance !== rightCandidate.distance) {
-        return leftCandidate.distance - rightCandidate.distance;
-      }
-
-      return rightCandidate.directionDot - leftCandidate.directionDot;
+      return leftCandidate.distance - rightCandidate.distance;
     });
 
-    return attackCandidates[0]?.monster;
+    return attackCandidates.slice(0, Math.max(1, targetCount)).map((candidate) => candidate.monster);
   }
 
   /**
@@ -739,9 +1235,53 @@ export class StageScene extends Phaser.Scene {
       return;
     }
 
-    this.nextSpawnTimestamp = this.time.now + MONSTER_SPAWN_INTERVAL_MS;
-    const monster = this.spawnSystem.spawnMonster(this, this.player.x, this.player.y);
-    this.monsters.push(monster);
+    const survivalElapsedMs = this.getSurvivalElapsedMs();
+    const waveConfig = this.spawnSystem.getWaveConfig(survivalElapsedMs);
+    this.nextSpawnTimestamp = this.time.now + waveConfig.spawnIntervalMs;
+
+    for (let spawnIndex = 0; spawnIndex < waveConfig.spawnCount; spawnIndex += 1) {
+      const monster = this.spawnSystem.spawnMonster(
+        this,
+        this.player.x,
+        this.player.y,
+        survivalElapsedMs,
+      );
+      this.monsters.push(monster);
+    }
+
+    this.spawnEliteMonsterIfNeeded(survivalElapsedMs);
+  }
+
+  /**
+   * @date 2026-04-28
+   * @desc 엘리트 등장 시간이 되면 확정 엘리트를 스폰하고 다음 등장 시간을 예약한다.
+   */
+  private spawnEliteMonsterIfNeeded(survivalElapsedMs: number) {
+    if (survivalElapsedMs < this.nextEliteSpawnElapsedMs) {
+      return;
+    }
+
+    const eliteMonster = this.spawnSystem.spawnMonster(
+      this,
+      this.player.x,
+      this.player.y,
+      survivalElapsedMs,
+      "elite",
+    );
+    this.monsters.push(eliteMonster);
+    this.nextEliteSpawnElapsedMs = this.computeNextEliteSpawnElapsedMs(survivalElapsedMs);
+  }
+
+  /**
+   * @date 2026-04-28
+   * @desc 현재 생존 시간을 기준으로 다음 엘리트 등장 시간을 계산한다.
+   */
+  private computeNextEliteSpawnElapsedMs(currentElapsedMs: number) {
+    const nextIntervalMs = Phaser.Math.Between(
+      ELITE_MONSTER_MIN_INTERVAL_MS,
+      ELITE_MONSTER_MAX_INTERVAL_MS,
+    );
+    return Math.max(ELITE_MONSTER_START_MS, currentElapsedMs + nextIntervalMs);
   }
 
   /**
@@ -860,7 +1400,7 @@ export class StageScene extends Phaser.Scene {
   private showLevelUpOptions() {
     this.isLevelUpOpen = true;
     this.physics.world.pause();
-    const options = this.progressionSystem.pickLevelUpOptions();
+    const options = this.progressionSystem.pickLevelUpOptions(this.playerState);
     eventBus.emit("levelup:shown", { options });
   }
 
@@ -868,35 +1408,202 @@ export class StageScene extends Phaser.Scene {
    * @date 2026-04-24
    * @desc ?좏깮???덈꺼???듭뀡????ν븯怨??λ젰移섎? 媛깆떊?쒕떎.
    */
-  private applyLevelUpSelection(optionName: string) {
+  private applyLevelUpSelection(selectedOption: LevelUpOption) {
     if (!this.isLevelUpOpen) {
       return;
     }
 
-    this.selectedOptions.push(optionName);
-    this.progressionSystem.applyLevelUp(this.playerState);
+    this.selectedOptions.push(selectedOption.name);
+    this.progressionSystem.applyLevelUp(this.playerState, selectedOption);
     this.isLevelUpOpen = false;
     this.physics.world.resume();
+    this.emitPlayerStatsUpdated();
     eventBus.emit("levelup:closed", undefined);
   }
 
   /**
    * @date 2026-04-24
-   * @desc ?앹〈 ?꾩쟻 ?쒓컙??蹂댁뒪 援ш컙???꾨떖?섎㈃ 蹂댁뒪 ?ъ쑝濡??꾪솚?쒕떎.
+   * @desc 보스 등장 시간이 되면 스테이지 안에서 경고 후 보스를 스폰한다.
    */
   private handleBossTrigger() {
+    if (this.bossPhase > FINAL_BOSS_PHASE || this.hasActiveBoss()) {
+      return;
+    }
+
+    if (this.isBossWarningActive) {
+      if (this.time.now >= this.bossWarningUntilTimestamp) {
+        this.spawnStageBoss();
+      }
+      return;
+    }
+
     if (this.getSurvivalElapsedMs() < this.nextBossTriggerElapsedMs) {
       return;
     }
 
-    eventBus.emit("combat:target-updated", null);
-    this.scene.start("BossScene", {
-      playerState: { ...this.playerState },
-      selectedOptions: [...this.selectedOptions],
-      survivalElapsedMs: this.getSurvivalElapsedMs(),
-      nextBossTriggerElapsedMs: this.nextBossTriggerElapsedMs + BOSS_APPEAR_INTERVAL_MS,
-      bossPhase: this.bossPhase,
+    this.startBossWarning();
+  }
+
+  /**
+   * @date 2026-04-28
+   * @desc 현재 스테이지에 살아있는 보스가 있는지 확인한다.
+   */
+  private hasActiveBoss() {
+    return this.monsters.some((monster) => {
+      return monster.active && Boolean(monster.getData("isBoss"));
     });
+  }
+
+  /**
+   * @date 2026-04-28
+   * @desc 보스 등장 전 경고 문구를 표시하고 주변 몬스터를 밀어낸다.
+   */
+  private startBossWarning() {
+    this.isBossWarningActive = true;
+    this.bossWarningUntilTimestamp = this.time.now + BOSS_WARNING_DURATION_MS;
+    this.pushNearbyMonstersForBossSpawn();
+
+    this.bossWarningText?.destroy();
+    this.bossWarningText = this.add
+      .text(GAME_WIDTH / 2, GAME_HEIGHT / 2 - 160, `WARNING: Boss ${this.bossPhase}`, {
+        fontSize: "38px",
+        color: "#fca5a5",
+        stroke: "#450a0a",
+        strokeThickness: 6,
+      })
+      .setOrigin(0.5, 0.5)
+      .setScrollFactor(0)
+      .setDepth(100);
+  }
+
+  /**
+   * @date 2026-04-28
+   * @desc 보스 등장 연출을 위해 플레이어 주변 몬스터를 바깥쪽으로 밀어낸다.
+   */
+  private pushNearbyMonstersForBossSpawn() {
+    this.monsters.forEach((monster) => {
+      if (Boolean(monster.getData("isBoss"))) {
+        return;
+      }
+
+      const distance = Phaser.Math.Distance.Between(this.player.x, this.player.y, monster.x, monster.y);
+      if (distance > BOSS_STAGE_CLEAR_RADIUS) {
+        return;
+      }
+
+      const monsterBody = monster.body as Phaser.Physics.Arcade.Body;
+      const deltaX = monster.x - this.player.x;
+      const deltaY = monster.y - this.player.y;
+      const length = Math.hypot(deltaX, deltaY) || 1;
+      monsterBody.setVelocity(
+        (deltaX / length) * BOSS_STAGE_PUSH_FORCE,
+        (deltaY / length) * BOSS_STAGE_PUSH_FORCE,
+      );
+      monster.setData("knockbackUntil", this.time.now + BOSS_WARNING_DURATION_MS);
+    });
+  }
+
+  /**
+   * @date 2026-04-28
+   * @desc 현재 보스 페이즈 데이터를 기반으로 스테이지 보스를 생성한다.
+   */
+  private spawnStageBoss() {
+    this.isBossWarningActive = false;
+    this.bossWarningText?.destroy();
+    this.bossWarningText = null;
+
+    const bossData = this.getBossData();
+    const spawnPosition = this.computeBossSpawnPosition();
+    const bossMonster = this.add.rectangle(
+      spawnPosition.x,
+      spawnPosition.y,
+      BOSS_STAGE_WIDTH,
+      BOSS_STAGE_HEIGHT,
+      BOSS_STAGE_COLOR,
+    );
+    bossMonster.setDepth(BOSS_STAGE_DEPTH);
+    this.physics.add.existing(bossMonster);
+
+    const bossBody = bossMonster.body as Phaser.Physics.Arcade.Body;
+    bossBody.setCollideWorldBounds(true);
+
+    const maxHp = this.computeBossMaxHp(bossData.maxHp, this.bossPhase);
+    bossMonster.setData("isBoss", true);
+    bossMonster.setData("name", `Boss ${this.bossPhase}: ${bossData.name}`);
+    bossMonster.setData("grade", "boss");
+    bossMonster.setData("hp", maxHp);
+    bossMonster.setData("maxHp", maxHp);
+    bossMonster.setData("damage", bossData.damage);
+    bossMonster.setData("moveSpeed", bossData.moveSpeed);
+    bossMonster.setData("expReward", this.computeBossExpReward(bossData.expCoefficient, this.bossPhase));
+    this.monsters.push(bossMonster);
+    eventBus.emit("combat:target-updated", {
+      name: `Boss ${this.bossPhase}: ${bossData.name}`,
+      hp: maxHp,
+      maxHp,
+    });
+  }
+
+  /**
+   * @date 2026-04-28
+   * @desc 플레이어 주변 보스 스폰 좌표를 월드 경계 안으로 계산한다.
+   */
+  private computeBossSpawnPosition() {
+    const angleRadian = Phaser.Math.FloatBetween(0, Math.PI * 2);
+    const rawX = this.player.x + Math.cos(angleRadian) * BOSS_STAGE_SPAWN_DISTANCE;
+    const rawY = this.player.y + Math.sin(angleRadian) * BOSS_STAGE_SPAWN_DISTANCE;
+
+    return {
+      x: Phaser.Math.Clamp(rawX, BOSS_STAGE_WIDTH / 2, WORLD_WIDTH - BOSS_STAGE_WIDTH / 2),
+      y: Phaser.Math.Clamp(rawY, BOSS_STAGE_HEIGHT / 2, WORLD_HEIGHT - BOSS_STAGE_HEIGHT / 2),
+    };
+  }
+
+  /**
+   * @date 2026-04-28
+   * @desc 보스 데이터가 없을 때 기본값을 포함한 보스 데이터를 반환한다.
+   */
+  private getBossData(): BossData {
+    const bossData = bosses[0] as Partial<BossData> | undefined;
+    return {
+      name: String(bossData?.name ?? "Boss"),
+      maxHp: Number(bossData?.maxHp ?? BOSS_DEFAULT_MAX_HP),
+      damage: Number(bossData?.damage ?? 12),
+      moveSpeed: Number(bossData?.moveSpeed ?? 90),
+      expCoefficient: Number(bossData?.expCoefficient ?? BOSS_DEFAULT_EXP_COEFFICIENT),
+    };
+  }
+
+  /**
+   * @date 2026-04-28
+   * @desc 보스 페이즈에 따른 최대 체력을 계산한다.
+   */
+  private computeBossMaxHp(baseBossHp: number, bossPhase: number) {
+    return baseBossHp + (bossPhase - 1) * BOSS_PHASE_HP_INCREMENT;
+  }
+
+  /**
+   * @date 2026-04-28
+   * @desc 보스 계수와 페이즈 성장률을 반영해 처치 경험치를 계산한다.
+   */
+  private computeBossExpReward(expCoefficient: number, bossPhase: number) {
+    const phaseMultiplier = 1 + (bossPhase - 1) * BOSS_PHASE_EXP_GROWTH_RATE;
+    return Math.max(1, Math.round(BASE_EXP_REWARD * expCoefficient * phaseMultiplier));
+  }
+
+  /**
+   * @date 2026-04-28
+   * @desc 보스 처치 결과를 반영해 다음 보스를 예약하거나 클리어 처리한다.
+   */
+  private handleBossDefeated() {
+    eventBus.emit("combat:target-updated", null);
+    if (this.bossPhase >= FINAL_BOSS_PHASE) {
+      this.scene.start("ResultScene", { result: "clear" });
+      return;
+    }
+
+    this.bossPhase += 1;
+    this.nextBossTriggerElapsedMs += BOSS_REAPPEAR_INTERVAL_MS;
   }
 
   /**
@@ -921,11 +1628,132 @@ export class StageScene extends Phaser.Scene {
    * @desc 미니맵 플레이어 마커와 현재 구간 라벨을 현재 좌표 기준으로 갱신한다.
    */
   private updateMinimapMarkerAndRegion() {
-    const ratioX = Phaser.Math.Clamp(this.player.x / WORLD_WIDTH, 0, 1);
-    const ratioY = Phaser.Math.Clamp(this.player.y / WORLD_HEIGHT, 0, 1);
-    this.minimapMarker.x = STAGE_MINIMAP_X + ratioX * STAGE_MINIMAP_WIDTH;
-    this.minimapMarker.y = STAGE_MINIMAP_Y + ratioY * STAGE_MINIMAP_HEIGHT;
+    const playerPoint = this.toMinimapPoint(this.player.x, this.player.y);
+    this.minimapMarker.x = playerPoint.x;
+    this.minimapMarker.y = playerPoint.y;
     this.regionText.setText(`${STAGE_REGION_LABEL_TEXT}: ${this.getCurrentRegionLabel()}`);
+    this.updateMinimapEnemyMarkers();
+    this.updateMinimapExpMarkers();
+  }
+
+  /**
+   * @date 2026-04-28
+   * @desc 월드 좌표를 미니맵 내부 좌표로 변환한다.
+   */
+  private toMinimapPoint(worldX: number, worldY: number) {
+    const ratioX = Phaser.Math.Clamp(worldX / WORLD_WIDTH, 0, 1);
+    const ratioY = Phaser.Math.Clamp(worldY / WORLD_HEIGHT, 0, 1);
+    return {
+      x: STAGE_MINIMAP_X + ratioX * STAGE_MINIMAP_WIDTH,
+      y: STAGE_MINIMAP_Y + ratioY * STAGE_MINIMAP_HEIGHT,
+    };
+  }
+
+  /**
+   * @date 2026-04-28
+   * @desc 적과 보스의 월드 좌표를 미니맵 마커로 갱신한다.
+   */
+  private updateMinimapEnemyMarkers() {
+    const markerPoints = this.monsters
+      .filter((monster) => {
+        return monster.active && this.isInMinimapObjectVisibleRadius(monster.x, monster.y);
+      })
+      .map((monster): MinimapPoint => {
+        const point = this.toMinimapPoint(monster.x, monster.y);
+        const isBoss = Boolean(monster.getData("isBoss"));
+        const isElite = monster.getData("grade") === "elite";
+        if (isBoss) {
+          return {
+            ...point,
+            radius: STAGE_MINIMAP_BOSS_MARKER_RADIUS,
+            color: STAGE_MINIMAP_BOSS_MARKER_COLOR,
+          };
+        }
+
+        if (isElite) {
+          return {
+            ...point,
+            radius: STAGE_MINIMAP_ELITE_MARKER_RADIUS,
+            color: STAGE_MINIMAP_ELITE_MARKER_COLOR,
+          };
+        }
+
+        return {
+          ...point,
+          radius: STAGE_MINIMAP_ENEMY_MARKER_RADIUS,
+          color: STAGE_MINIMAP_ENEMY_MARKER_COLOR,
+        };
+      });
+
+    this.syncMinimapMarkers(this.minimapEnemyMarkers, markerPoints);
+  }
+
+  /**
+   * @date 2026-04-28
+   * @desc 경험치 구슬 일부를 미니맵 마커로 갱신한다.
+   */
+  private updateMinimapExpMarkers() {
+    const visibleExpOrbs = this.expOrbs.filter((expOrb) => {
+      return expOrb.active && this.isInMinimapObjectVisibleRadius(expOrb.x, expOrb.y);
+    });
+    const step = Math.max(1, Math.ceil(visibleExpOrbs.length / STAGE_MINIMAP_MAX_EXP_MARKERS));
+    const markerPoints: MinimapPoint[] = [];
+
+    for (let orbIndex = 0; orbIndex < visibleExpOrbs.length; orbIndex += step) {
+      const expOrb = visibleExpOrbs[orbIndex];
+      if (!expOrb?.active) {
+        continue;
+      }
+
+      const point = this.toMinimapPoint(expOrb.x, expOrb.y);
+      markerPoints.push({
+        ...point,
+        radius: STAGE_MINIMAP_EXP_MARKER_RADIUS,
+        color: STAGE_MINIMAP_EXP_MARKER_COLOR,
+      });
+    }
+
+    this.syncMinimapMarkers(this.minimapExpMarkers, markerPoints);
+  }
+
+  /**
+   * @date 2026-04-28
+   * @desc 플레이어 주변 미니맵 표시 반경 안에 있는 월드 좌표인지 확인한다.
+   */
+  private isInMinimapObjectVisibleRadius(worldX: number, worldY: number) {
+    return (
+      Phaser.Math.Distance.Between(this.player.x, this.player.y, worldX, worldY) <=
+      STAGE_MINIMAP_OBJECT_VISIBLE_RADIUS
+    );
+  }
+
+  /**
+   * @date 2026-04-28
+   * @desc 미니맵 마커 풀을 목표 좌표 목록에 맞춰 재사용 갱신한다.
+   */
+  private syncMinimapMarkers(
+    markerPool: Phaser.GameObjects.Arc[],
+    markerPoints: MinimapPoint[],
+  ) {
+    while (markerPool.length < markerPoints.length) {
+      const marker = this.add.circle(0, 0, 1, 0xffffff);
+      marker.setScrollFactor(0);
+      marker.setDepth(90);
+      markerPool.push(marker);
+    }
+
+    markerPool.forEach((marker, markerIndex) => {
+      const markerPoint = markerPoints[markerIndex];
+      if (!markerPoint) {
+        marker.setVisible(false);
+        return;
+      }
+
+      marker.setVisible(true);
+      marker.setPosition(markerPoint.x, markerPoint.y);
+      marker.setRadius(markerPoint.radius);
+      marker.setFillStyle(markerPoint.color, 1);
+    });
   }
 
   /**

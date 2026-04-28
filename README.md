@@ -11,18 +11,33 @@
 
 ## 프로젝트 구조
 ```text
-apps/
-  web/
-    src/
-      game/
-        constants/
-        core/
-        data/
-        scenes/
-        services/
-        shared/
-        systems/
+debugFigter/
+  apps/
+    web/
+      src/
+        main.tsx             # 엔트리 포인트
+        App.tsx              # React 루트 컴포넌트
+        styles.css           # 전역 스타일
+        game/
+          constants/         # 게임 상수
+          core/              # 초기화/핵심 실행 흐름
+          data/              # 정적 데이터(JSON)
+          scenes/            # Phaser 씬
+          services/          # 저장/외부 연동 서비스
+          shared/            # 공용 타입
+          systems/           # 전투/스폰/성장 시스템
+      index.html             # Vite HTML 템플릿
+      package.json           # 스크립트/의존성
+      tsconfig*.json         # TypeScript 설정
+      vite.config.ts         # Vite 설정
 ```
+
+## 생성 산출물/캐시
+- `apps/web/node_modules`
+- `apps/web/dist`
+- `apps/web/*.tsbuildinfo`
+
+위 경로는 `.gitignore`로 관리되어 Git 추적 대상에서 제외됩니다.
 
 ## 로컬 실행 방법
 1. 의존성 설치

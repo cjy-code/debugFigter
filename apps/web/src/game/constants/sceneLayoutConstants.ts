@@ -1,0 +1,13 @@
+export const BOSS_TITLE_X = 220;
+export const BOSS_TITLE_Y = 120;
+export const BOSS_TITLE_FONT_SIZE = "40px";
+export const BOSS_HP_TEXT_X = 220;
+export const BOSS_HP_TEXT_Y = 360;
+export const BOSS_HP_TEXT_FONT_SIZE = "28px";
+export const BOSS_INFO_TEXT_X = 220;
+export const BOSS_INFO_TEXT_Y = 410;
+export const BOSS_INFO_TEXT_FONT_SIZE = "22px";
+export const BOSS_SPRITE_X = 490;
+export const BOSS_SPRITE_Y = 280;
+export const BOSS_SPRITE_WIDTH = 120;
+export const BOSS_SPRITE_HEIGHT = 120;

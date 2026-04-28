@@ -1,0 +1,58 @@
+[
+  {
+    "id": "attackSpeed",
+    "type": "stat",
+    "targetId": "attackSpeed",
+    "name": "공격속도",
+    "description": "자동 공격 쿨다운이 감소합니다."
+  },
+  {
+    "id": "expGain",
+    "type": "stat",
+    "targetId": "expGain",
+    "name": "경험치 획득량",
+    "description": "경험치 구슬 흡수량이 증가합니다."
+  },
+  {
+    "id": "attackCount",
+    "type": "stat",
+    "targetId": "attackCount",
+    "name": "공격 개수",
+    "description": "12스택마다 자동 공격 대상 수가 증가합니다."
+  },
+  {
+    "id": "damage",
+    "type": "stat",
+    "targetId": "damage",
+    "name": "데미지",
+    "description": "자동 공격 피해량이 증가합니다."
+  },
+  {
+    "id": "criticalChance",
+    "type": "stat",
+    "targetId": "criticalChance",
+    "name": "치명타 확률",
+    "description": "치명타 발생 확률이 증가합니다."
+  },
+  {
+    "id": "criticalDamage",
+    "type": "stat",
+    "targetId": "criticalDamage",
+    "name": "치명타 피해",
+    "description": "치명타 피해 배율이 증가합니다."
+  },
+  {
+    "id": "moveSpeed",
+    "type": "stat",
+    "targetId": "moveSpeed",
+    "name": "이동속도",
+    "description": "플레이어 이동 속도가 증가합니다."
+  },
+  {
+    "id": "attackRange",
+    "type": "stat",
+    "targetId": "attackRange",
+    "name": "공격 범위",
+    "description": "자동 공격 탐색 범위가 증가합니다."
+  }
+]

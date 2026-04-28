@@ -4,21 +4,21 @@ type SynergyResult = {
 };
 
 /**
- * @date 2026-04-23
- * @desc 선택된 강화 조합에 따른 시너지 효과를 계산한다.
+ * @date 2026-04-27
+ * @desc 선택한 강화 조합의 시너지 효과를 계산한다.
  */
 export class SynergySystem {
   /**
-   * @date 2026-04-23
-   * @desc 현재 선택된 옵션 목록에서 단일 시너지를 찾아 반환한다.
+   * @date 2026-04-27
+   * @desc 선택 옵션 목록에서 적용 가능한 시너지 1개를 계산해 반환한다.
    */
   evaluate(selectedOptions: string[]) {
     const hasFlame = selectedOptions.some((optionName) => optionName.includes("화염"));
-    const hasCritical = selectedOptions.some((optionName) => optionName.includes("치명"));
+    const hasCritical = selectedOptions.some((optionName) => optionName.includes("치명타"));
 
     if (hasFlame && hasCritical) {
       const result: SynergyResult = {
-        description: "화염 치명 시너지 활성화",
+        description: "화염 치명타 시너지 활성",
         bonusDamage: 3,
       };
       return result;

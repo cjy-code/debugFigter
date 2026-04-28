@@ -1,9 +1,72 @@
 export type RunResult = "clear" | "dead";
 
+export type PlayerClassType = "warrior" | "mage" | "archer";
+
+export type MonsterGrade = "normal" | "enhanced" | "elite";
+
+export type SkillId = "nullPointer" | "memoryLeak" | "threadCrash";
+
+export type PassiveId = "cpuBoost" | "garbageCollector" | "stackOverflow";
+
+export type LevelUpOptionType = "stat";
+
+export type StatUpgradeId =
+  | "attackSpeed"
+  | "expGain"
+  | "attackCount"
+  | "damage"
+  | "criticalChance"
+  | "criticalDamage"
+  | "moveSpeed"
+  | "attackRange";
+
+export type StatStacks = Record<StatUpgradeId, number>;
+
+export type BasicKarmaId = "fire" | "water" | "wind" | "rock" | "dark" | "holy";
+
+export type KarmaId = BasicKarmaId | "transformShard";
+
+export type KarmaCounts = Record<KarmaId, number>;
+
+export type OwnedSkill = {
+  id: SkillId;
+  level: number;
+};
+
+export type OwnedPassive = {
+  id: PassiveId;
+  level: number;
+};
+
+export type LevelUpOption = {
+  id: StatUpgradeId;
+  type: LevelUpOptionType;
+  targetId: StatUpgradeId;
+  name: string;
+  description: string;
+  currentStack?: number;
+};
+
 export type PlayerState = {
+  classType: PlayerClassType;
   level: number;
   exp: number;
   hp: number;
   maxHp: number;
+  baseDamage: number;
   damage: number;
+  baseAttackRange: number;
+  attackRange: number;
+  moveSpeed: number;
+  pickupRadius: number;
+  cooldownMultiplier: number;
+  areaMultiplier: number;
+  expMultiplier: number;
+  criticalChance: number;
+  criticalDamageMultiplier: number;
+  attackCount: number;
+  statStacks: StatStacks;
+  karmaCounts: KarmaCounts;
+  skills: OwnedSkill[];
+  passives: OwnedPassive[];
 };
