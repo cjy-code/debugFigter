@@ -1,6 +1,7 @@
 [
   {
-    "name": "NullPointer King",
+    "name": "Syntax Tyrant",
+    "textureKey": "boss-syntax-tyrant",
     "maxHp": 250,
     "damage": 12,
     "moveSpeed": 90,

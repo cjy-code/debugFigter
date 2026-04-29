@@ -81,13 +81,22 @@ body {
 .karmaHud {
   grid-column: 1 / -1;
   display: grid;
-  grid-template-columns: 90px repeat(7, minmax(0, 1fr));
+  grid-template-columns: 90px repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  width: 100%;
+}
+
+.karmaBuildHud {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: 140px 1fr;
   gap: 6px;
   width: 100%;
 }
 
 .karmaHudTitle,
-.karmaHudItem {
+.karmaHudItem,
+.karmaBuildHud span {
   min-width: 0;
   border: 1px solid #334155;
   border-radius: 6px;
@@ -100,6 +109,13 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
+.karmaBuildHud span {
+  color: #f9a8d4;
+  border-color: #7e22ce;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .karmaHudTitle {
   color: #f9a8d4;
   border-color: #be185d;
@@ -109,28 +125,12 @@ body {
   color: #fca5a5;
 }
 
-.karmaHudItem-water {
-  color: #7dd3fc;
-}
-
-.karmaHudItem-wind {
-  color: #bbf7d0;
+.karmaHudItem-electric {
+  color: #fde047;
 }
 
 .karmaHudItem-rock {
   color: #fde68a;
-}
-
-.karmaHudItem-dark {
-  color: #c4b5fd;
-}
-
-.karmaHudItem-holy {
-  color: #fef3c7;
-}
-
-.karmaHudItem-transformShard {
-  color: #f9a8d4;
 }
 
 .gameContainer {
@@ -184,4 +184,61 @@ body {
   border-color: #22d3ee;
   background: #0f172a;
   box-shadow: 0 0 0 1px #22d3ee inset;
+}
+
+.settingsOverlay {
+  z-index: 20;
+}
+
+.settingsPanel {
+  width: min(420px, calc(100vw - 32px));
+  display: grid;
+  gap: 16px;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  background: rgba(15, 23, 42, 0.96);
+  padding: 22px;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.38);
+}
+
+.settingsPanel h2 {
+  margin: 0;
+  font-size: 24px;
+  text-align: left;
+}
+
+.settingsControl {
+  display: grid;
+  gap: 8px;
+}
+
+.settingsControl span {
+  font-size: 14px;
+  color: #e2e8f0;
+  font-variant-numeric: tabular-nums;
+}
+
+.settingsControl input {
+  width: 100%;
+  accent-color: #22d3ee;
+}
+
+.settingsActions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.settingsActions button {
+  min-height: 42px;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  background: #1e293b;
+  color: #f8fafc;
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.settingsActions button:hover {
+  background: #334155;
 }

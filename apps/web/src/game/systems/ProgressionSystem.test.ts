@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { createInitialPlayerState } from "../constants/gameConstants";
 import statUpgrades from "../data/statUpgrades.json";
 import type { LevelUpOption, PlayerState, StatStacks } from "../shared/gameTypes";
 import { ProgressionSystem } from "./ProgressionSystem";
@@ -22,54 +23,19 @@ function createStatStacks(overrides?: Partial<StatStacks>): StatStacks {
 }
 
 /**
- * @date 2026-04-28
- * @desc 테스트용 기본 카르마 보유량 객체를 생성한다.
- */
-function createKarmaCounts() {
-  return {
-    fire: 0,
-    water: 0,
-    wind: 0,
-    rock: 0,
-    dark: 0,
-    holy: 0,
-    transformShard: 0,
-  };
-}
-
-/**
  * @date 2026-04-27
  * @desc 테스트용 플레이어 상태를 생성한다.
  */
 function createPlayerState(overrides?: Partial<PlayerState>): PlayerState {
   return {
-    classType: "warrior",
-    level: 1,
-    exp: 0,
-    hp: 100,
-    maxHp: 100,
-    baseDamage: 10,
-    damage: 10,
-    baseAttackRange: 88,
-    attackRange: 88,
-    moveSpeed: 260,
-    pickupRadius: 80,
-    cooldownMultiplier: 1,
-    areaMultiplier: 1,
-    expMultiplier: 1,
-    criticalChance: 0.05,
-    criticalDamageMultiplier: 1.5,
-    attackCount: 1,
+    ...createInitialPlayerState("warrior"),
     statStacks: createStatStacks(),
-    karmaCounts: createKarmaCounts(),
-    skills: [],
-    passives: [],
     ...overrides,
   };
 }
 
 describe("ProgressionSystem", () => {
-  it("레벨 기준 필요 경험치를 계산한다", () => {
+  it("calculates required exp from player level", () => {
     const progressionSystem = new ProgressionSystem();
 
     const requiredExp = progressionSystem.getRequiredExp(createPlayerState({ level: 3 }));
@@ -77,7 +43,7 @@ describe("ProgressionSystem", () => {
     expect(requiredExp).toBe(30);
   });
 
-  it("필요 경험치 이상이면 레벨업 가능 상태를 반환한다", () => {
+  it("returns true when exp reaches the required level-up amount", () => {
     const progressionSystem = new ProgressionSystem();
     const playerState = createPlayerState({ level: 2, exp: 20 });
 
@@ -86,7 +52,7 @@ describe("ProgressionSystem", () => {
     expect(canLevelUp).toBe(true);
   });
 
-  it("레벨업 적용 시 레벨과 경험치를 규칙대로 갱신한다", () => {
+  it("applies level-up while preserving current combat stats", () => {
     const progressionSystem = new ProgressionSystem();
     const playerState = createPlayerState({
       level: 2,
@@ -105,7 +71,7 @@ describe("ProgressionSystem", () => {
     expect(playerState.hp).toBe(90);
   });
 
-  it("스탯 선택 시 해당 스택을 증가시키고 파생 스탯을 갱신한다", () => {
+  it("increments the selected stat stack and recalculates derived stats", () => {
     const progressionSystem = new ProgressionSystem();
     const playerState = createPlayerState({ level: 1, exp: 10 });
     const option = statUpgrades.find((upgrade) => upgrade.id === "damage") as LevelUpOption;
@@ -113,10 +79,10 @@ describe("ProgressionSystem", () => {
     progressionSystem.applyLevelUp(playerState, option);
 
     expect(playerState.statStacks.damage).toBe(1);
-    expect(playerState.damage).toBe(10);
+    expect(playerState.damage).toBe(15);
   });
 
-  it("공격속도는 30스택 이후 소프트캡을 적용한다", () => {
+  it("uses soft-cap attack speed scaling after 30 stacks", () => {
     const progressionSystem = new ProgressionSystem();
     const playerState = createPlayerState({
       statStacks: createStatStacks({ attackSpeed: 31 }),
@@ -127,7 +93,7 @@ describe("ProgressionSystem", () => {
     expect(playerState.cooldownMultiplier).toBeCloseTo(0.636);
   });
 
-  it("공격 개수는 12스택마다 1개 증가한다", () => {
+  it("adds one attack count every 12 attack count stacks", () => {
     const progressionSystem = new ProgressionSystem();
     const playerState = createPlayerState({
       statStacks: createStatStacks({ attackCount: 24 }),
@@ -138,7 +104,7 @@ describe("ProgressionSystem", () => {
     expect(playerState.attackCount).toBe(3);
   });
 
-  it("레벨업 선택지는 최대 3개이며 스탯 목록에 포함된 값만 반환한다", () => {
+  it("returns up to three level-up options", () => {
     const progressionSystem = new ProgressionSystem();
 
     const options = progressionSystem.pickLevelUpOptions();
@@ -149,7 +115,7 @@ describe("ProgressionSystem", () => {
     });
   });
 
-  it("랜덤 소스를 주입하면 선택지 결과를 재현 가능하게 검증할 수 있다", () => {
+  it("supports deterministic level-up option selection", () => {
     const fixedRandom = () => 0.9999;
     const progressionSystem = new ProgressionSystem(fixedRandom);
 

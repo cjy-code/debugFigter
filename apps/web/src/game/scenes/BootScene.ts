@@ -1,10 +1,15 @@
 import Phaser from "phaser";
 import {
+  BASIC_ATTACK_SOUND_KEYS,
+  BOSS_TEXTURE_KEYS,
   CHARACTER_SPRITE_SHEET_CONFIG,
+  KARMA_TEXTURE_KEYS,
+  MONSTER_TEXTURE_KEYS,
   PLAYER_CLASS_ORDER,
   PLAYER_IDLE_ANIMATION_KEY_BY_CLASS,
   PLAYER_IDLE_TEXTURE_KEY_BY_CLASS,
-  STAGE_PARALLAX_TEXTURE_KEYS,
+  STAGE_BACKGROUND_TEXTURE_KEYS,
+  STAGE_BGM_SOUND_KEYS,
   SHARED_FX_SHEET_CONFIG,
   SHARED_FX_TEXTURE_KEYS,
   WARRIOR_SELECT_ANIMATION_KEY,
@@ -88,17 +93,30 @@ export class BootScene extends Phaser.Scene {
         frameHeight: SHARED_FX_SHEET_CONFIG.frameHeight,
       },
     );
-    this.load.image(
-      STAGE_PARALLAX_TEXTURE_KEYS.far,
-      "/assets/backgrounds/core-city/core_city_far_v01.png",
+    this.load.audio(BASIC_ATTACK_SOUND_KEYS.hit, "/assets/audio/hit.wav");
+    this.load.audio(
+      STAGE_BGM_SOUND_KEYS.mainBattle,
+      "/assets/audio/cyber-glitch-battle-v2.wav",
     );
     this.load.image(
-      STAGE_PARALLAX_TEXTURE_KEYS.mid,
-      "/assets/backgrounds/core-city/core_city_mid_v01.png",
+      MONSTER_TEXTURE_KEYS.nullSlime,
+      "/assets/monsters/null-slime/null_slime_idle_game_v01.png",
     );
     this.load.image(
-      STAGE_PARALLAX_TEXTURE_KEYS.front,
-      "/assets/backgrounds/core-city/core_city_front_v01.png",
+      MONSTER_TEXTURE_KEYS.memoryLeakSlime,
+      "/assets/monsters/memory-leak-slime/memory_leak_slime_idle_game_v01.png",
+    );
+    this.load.image(
+      BOSS_TEXTURE_KEYS.syntaxTyrant,
+      "/assets/bosses/syntax-tyrant/syntax_tyrant_idle_game_v01.png",
+    );
+    this.load.image(
+      KARMA_TEXTURE_KEYS.orb,
+      "/assets/karma/karma_orb_game_v01.png",
+    );
+    this.load.image(
+      STAGE_BACKGROUND_TEXTURE_KEYS.coreDebugTile,
+      "/assets/backgrounds/core-debug/core_debug_tile_v01.png",
     );
   }
 

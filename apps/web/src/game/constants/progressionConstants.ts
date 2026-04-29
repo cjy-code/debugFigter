@@ -35,24 +35,49 @@ export const EXP_ORB_MIN_MOVE_SPEED = 120;
 export const EXP_ORB_MAX_MOVE_SPEED = 760;
 export const EXP_ORB_ABSORB_DISTANCE = 10;
 export const EXP_ORB_MAX_COUNT = 500;
+export const KARMA_MAX_SELECTED_ELEMENT_COUNT = 3;
+export const KARMA_OPTION_COUNT = 3;
+export const KARMA_EXP_PER_NORMAL_DROP = 1;
+export const KARMA_EXP_PER_ENHANCED_DROP = 1;
+export const KARMA_EXP_PER_ELITE_DROP = 2;
+export const KARMA_EXP_PER_BOSS_DROP = 3;
+export const KARMA_NORMAL_DROP_RATE = 0.12;
+export const KARMA_ENHANCED_DROP_RATE = 0.25;
+export const KARMA_ELITE_DROP_RATE = 1;
+export const KARMA_BOSS_DROP_RATE = 1;
+export const KARMA_FIRE_BASE_COOLDOWN_MS = 900;
+export const KARMA_ELECTRIC_BASE_COOLDOWN_MS = 700;
+export const KARMA_ROCK_BASE_RESPAWN_MS = 3_500;
+export const KARMA_FIRE_BASE_RANGE = 120;
+export const KARMA_ELECTRIC_BASE_RANGE = 180;
+export const KARMA_ROCK_BASE_RANGE = 62;
+export const KARMA_FIRE_BASE_HITBOX_RADIUS = 48;
+export const KARMA_ELECTRIC_CHAIN_RADIUS = 160;
+export const KARMA_ROCK_HITBOX_RADIUS = 18;
 export const KARMA_BASIC_DROP_RATE = 0.85;
-export const KARMA_BASIC_MAX_COUNT = 30;
+export const KARMA_BASIC_SLOT_LIMIT = 8;
+export const KARMA_BASIC_MAX_COUNT = 5;
 export const KARMA_TRANSFORM_SHARD_MAX_COUNT = 5;
 export const KARMA_ORB_RADIUS = 5;
+export const KARMA_ORB_DISPLAY_SIZE = 20;
 export const KARMA_ORB_DEPTH = 13;
 export const KARMA_ORB_STROKE_COLOR = 0xffffff;
 export const KARMA_ORB_STROKE_WIDTH = 1;
 export const KARMA_ORB_SCATTER_RADIUS = 26;
-export const KARMA_ORB_ABSORB_DISTANCE = 10;
+export const KARMA_ORB_ABSORB_DISTANCE = 28;
 export const KARMA_ORB_MOVE_SPEED_FACTOR = 3.4;
 export const KARMA_ORB_MIN_MOVE_SPEED = 130;
 export const KARMA_ORB_MAX_MOVE_SPEED = 820;
+export const KARMA_RECIPE_BASE_SUCCESS_RATE = 0.45;
+export const KARMA_RECIPE_FAIL_STACK_BONUS = 0.1;
+export const KARMA_RECIPE_MAX_SUCCESS_RATE = 0.95;
+export const KARMA_RECIPE_SUCCESS_DAMAGE_BONUS = 0.16;
+export const KARMA_RECIPE_SUCCESS_RANGE_BONUS = 0.08;
+export const KARMA_RECIPE_SUCCESS_HITBOX_BONUS = -0.04;
+export const KARMA_RECIPE_FAILURE_DAMAGE_BONUS = 0.06;
+export const KARMA_RECIPE_FAILURE_HITBOX_BONUS = 0.08;
 export const KARMA_COLOR_BY_ID = {
   fire: 0xef4444,
-  water: 0x38bdf8,
-  wind: 0x86efac,
+  electric: 0xfacc15,
   rock: 0xa16207,
-  dark: 0x7c3aed,
-  holy: 0xfde68a,
-  transformShard: 0xf472b6,
 } as const;

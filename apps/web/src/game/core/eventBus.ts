@@ -1,14 +1,31 @@
-import type { KarmaCounts, LevelUpOption, StatStacks } from "../shared/gameTypes";
+import type {
+  KarmaElementId,
+  KarmaElements,
+  KarmaSelectionState,
+  LevelUpOption,
+  StatStacks,
+} from "../shared/gameTypes";
 
 type EventMap = {
   "scene:changed": string;
   "levelup:shown": { options: LevelUpOption[] };
   "levelup:closed": undefined;
   "levelup:selected": { option: LevelUpOption };
+  "karma:options-shown": { options: KarmaElementId[]; expValue: number };
+  "karma:closed": undefined;
+  "karma:selected": { karmaElementId: KarmaElementId; expValue: number };
   "combat:target-updated": { name: string; hp: number; maxHp: number } | null;
   "player:direction-updated": { label: string };
   "player:stats-updated": { level: number; statStacks: StatStacks };
-  "player:karma-updated": { karmaCounts: KarmaCounts };
+  "player:karma-updated": {
+    karmaElements: KarmaElements;
+    karmaSelection: KarmaSelectionState;
+    karmaSlotText: string;
+  };
+  "settings:opened": { backgroundVolume: number; environmentVolume: number };
+  "settings:closed": undefined;
+  "settings:sound-changed": { backgroundVolume: number; environmentVolume: number };
+  "settings:restart-requested": undefined;
   "run:ended": { result: "clear" | "dead" };
 };
 

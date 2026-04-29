@@ -4,7 +4,6 @@ This directory stores runtime-ready character assets for `Debug Fighter`.
 
 ## Directory
 
-- `_reference`: concept board and source references
 - `warrior`: backend class assets
 - `mage`: AI class assets
 - `archer`: frontend class assets
@@ -24,6 +23,5 @@ This directory stores runtime-ready character assets for `Debug Fighter`.
 
 ## Current Extraction Status
 
-- Assets were generated from a single concept board image.
-- Some part and FX crops can contain neighboring pixels due source layout.
-- Replace with clean transparent originals for production quality.
+- Runtime-ready v04 sprites and documented class parts are retained.
+- Temporary crops, old variants, and source reference boards are excluded from this directory.

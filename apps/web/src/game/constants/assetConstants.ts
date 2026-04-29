@@ -33,6 +33,31 @@ export const SHARED_FX_TEXTURE_KEYS = {
   glitchSlash: "fx-glitch-slash",
 };
 
+export const BASIC_ATTACK_SOUND_KEYS = {
+  hit: "sound-basic-attack-hit",
+};
+
+export const STAGE_BGM_SOUND_KEYS = {
+  mainBattle: "bgm-stage-main-battle",
+};
+
+export const MONSTER_TEXTURE_KEYS = {
+  memoryLeakSlime: "monster-memory-leak-slime",
+  nullSlime: "monster-null-slime",
+};
+
+export const BOSS_TEXTURE_KEYS = {
+  syntaxTyrant: "boss-syntax-tyrant",
+};
+
+export const KARMA_TEXTURE_KEYS = {
+  orb: "karma-orb",
+};
+
+export const STAGE_BACKGROUND_TEXTURE_KEYS = {
+  coreDebugTile: "stage-core-debug-tile",
+};
+
 export const SHARED_FX_SHEET_CONFIG = {
   frameWidth: 96,
   frameHeight: 96,

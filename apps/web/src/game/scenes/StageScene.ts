@@ -21,11 +21,27 @@ import {
   INITIAL_MONSTER_SPAWN_DELAY_MS,
   LOOK_POINTER_MIN_DISTANCE,
   LOOK_DIRECTION_SMOOTHING_FACTOR,
+  MAGE_BASIC_PROJECTILE_COLOR,
+  MAGE_BASIC_PROJECTILE_HIT_RADIUS,
+  MAGE_BASIC_PROJECTILE_RADIUS,
+  MAGE_BASIC_PROJECTILE_SPEED,
+  MAGE_BASIC_PROJECTILE_STROKE_COLOR,
   MONSTER_SPEED,
   MONSTER_KNOCKBACK_DURATION_MS,
   MONSTER_KNOCKBACK_FORCE,
   AUTO_SKILL_COOLDOWN_MS,
+  BASIC_ATTACK_HIT_SOUND_VOLUME,
+  BASIC_ATTACK_SOUND_KEYS,
+  STAGE_BGM_SOUND_KEYS,
+  STAGE_ENVIRONMENT_SOUND_VOLUME,
+  STAGE_MAIN_BATTLE_BGM_VOLUME,
+  ARCHER_BASIC_PROJECTILE_COLOR,
+  ARCHER_BASIC_PROJECTILE_HEIGHT,
+  ARCHER_BASIC_PROJECTILE_HIT_RADIUS,
+  ARCHER_BASIC_PROJECTILE_SPEED,
+  ARCHER_BASIC_PROJECTILE_WIDTH,
   BASE_EXP_REWARD,
+  BASIC_PROJECTILE_DEPTH,
   EXP_ORB_ABSORB_DISTANCE,
   EXP_ORB_COLOR,
   EXP_ORB_DEPTH,
@@ -37,22 +53,16 @@ import {
   EXP_ORB_SCATTER_RADIUS,
   EXP_ORB_STROKE_COLOR,
   EXP_ORB_STROKE_WIDTH,
-  KARMA_BASIC_DROP_RATE,
-  KARMA_BASIC_MAX_COUNT,
-  KARMA_COLOR_BY_ID,
+  KARMA_ORB_DISPLAY_SIZE,
   KARMA_ORB_ABSORB_DISTANCE,
   KARMA_ORB_DEPTH,
-  KARMA_ORB_MAX_MOVE_SPEED,
-  KARMA_ORB_MIN_MOVE_SPEED,
-  KARMA_ORB_MOVE_SPEED_FACTOR,
   KARMA_ORB_RADIUS,
   KARMA_ORB_SCATTER_RADIUS,
-  KARMA_ORB_STROKE_COLOR,
-  KARMA_ORB_STROKE_WIDTH,
-  KARMA_TRANSFORM_SHARD_MAX_COUNT,
+  KARMA_TEXTURE_KEYS,
   ELITE_MONSTER_MAX_INTERVAL_MS,
   ELITE_MONSTER_MIN_INTERVAL_MS,
   ELITE_MONSTER_START_MS,
+  PLAYER_ACCELERATION_LERP,
   PLAYER_ATTACK_EFFECT_ALPHA,
   PLAYER_ATTACK_EFFECT_DURATION_MS,
   PLAYER_ATTACK_EFFECT_HEIGHT,
@@ -61,6 +71,7 @@ import {
   PLAYER_ATTACK_EFFECT_TWEEN_SCALE_Y,
   PLAYER_ATTACK_EFFECT_WIDTH,
   PLAYER_COLLISION_RADIUS,
+  PLAYER_DECELERATION_FACTOR,
   PLAYER_HEIGHT,
   PLAYER_HEAD_LERP_FACTOR,
   PLAYER_HEAD_OFFSET_DISTANCE,
@@ -72,6 +83,7 @@ import {
   PLAYER_KNOCKBACK_DURATION_MS,
   PLAYER_KNOCKBACK_FORCE,
   PLAYER_POST_HIT_COLLISION_GRACE_MS,
+  PLAYER_STOP_SPEED_THRESHOLD,
   PLAYER_WIDTH,
   PLAYER_IDLE_ANIMATION_KEY_BY_CLASS,
   PLAYER_IDLE_TEXTURE_KEY_BY_CLASS,
@@ -79,8 +91,7 @@ import {
   WARRIOR_STAGE_DISPLAY_WIDTH,
   WARRIOR_STAGE_ANIMATION_KEY,
   WARRIOR_STAGE_TEXTURE_KEY,
-  STAGE_PARALLAX_SCROLL_FACTORS,
-  STAGE_PARALLAX_TEXTURE_KEYS,
+  STAGE_BACKGROUND_TEXTURE_KEYS,
   WORLD_HEIGHT,
   WORLD_REGION_COLUMNS,
   WORLD_REGION_ROWS,
@@ -167,10 +178,13 @@ import { CombatSystem } from "../systems/CombatSystem";
 import { ProgressionSystem } from "../systems/ProgressionSystem";
 import { SpawnSystem } from "../systems/SpawnSystem";
 import { SynergySystem } from "../systems/SynergySystem";
+import { KarmaSystem } from "../systems/KarmaSystem";
+import { PoolManager } from "../systems/PoolManager";
 import type {
-  BasicKarmaId,
-  KarmaId,
+  KarmaAutoSkillState,
+  KarmaElementId,
   LevelUpOption,
+  MonsterGrade,
   PlayerClassType,
   PlayerState,
 } from "../shared/gameTypes";
@@ -193,7 +207,25 @@ type MoveKeys = {
 
 type ExpOrb = Phaser.GameObjects.Arc;
 
-type KarmaOrb = Phaser.GameObjects.Arc;
+type KarmaOrb = Phaser.GameObjects.Sprite;
+
+type MonsterGameObject = Phaser.GameObjects.Rectangle | Phaser.Physics.Arcade.Sprite;
+
+type BasicAttackProjectile = {
+  body: Phaser.GameObjects.Arc | Phaser.GameObjects.Rectangle;
+  target: MonsterGameObject;
+  damage: number;
+  speed: number;
+  hitRadius: number;
+  remainingDistance: number;
+};
+
+type RockKarmaObject = {
+  body: Phaser.GameObjects.Arc;
+  angleOffset: number;
+  isActive: boolean;
+  respawnAt: number;
+};
 
 type MinimapPoint = {
   x: number;
@@ -204,10 +236,15 @@ type MinimapPoint = {
 
 type BossData = {
   name: string;
+  textureKey?: string;
   maxHp: number;
   damage: number;
   moveSpeed: number;
   expCoefficient: number;
+};
+
+type VolumeAdjustableSound = Phaser.Sound.BaseSound & {
+  setVolume: (volume: number) => Phaser.Sound.BaseSound;
 };
 
 /**
@@ -215,9 +252,6 @@ type BossData = {
  * @desc ?쇰컲 ?ㅽ뀒?댁? ?앹〈 猷⑦봽瑜?泥섎━?섍퀬 援ш컙留덈떎 蹂댁뒪?꾩쓣 ?몄텧?쒕떎.
  */
 export class StageScene extends Phaser.Scene {
-  private parallaxFarLayer!: Phaser.GameObjects.TileSprite;
-  private parallaxMidLayer!: Phaser.GameObjects.TileSprite;
-  private parallaxFrontLayer!: Phaser.GameObjects.TileSprite;
   private player!: Phaser.Physics.Arcade.Sprite;
   private head!: Phaser.GameObjects.Arc;
   private timerText!: Phaser.GameObjects.Text;
@@ -231,14 +265,18 @@ export class StageScene extends Phaser.Scene {
   private bossWarningText: Phaser.GameObjects.Text | null = null;
   private minimapBackground!: Phaser.GameObjects.Rectangle;
   private minimapMarker!: Phaser.GameObjects.Arc;
+  private mainBattleBgm: VolumeAdjustableSound | null = null;
   private minimapGridLines: Phaser.GameObjects.Line[] = [];
   private minimapEnemyMarkers: Phaser.GameObjects.Arc[] = [];
   private minimapExpMarkers: Phaser.GameObjects.Arc[] = [];
   private moveKeys!: MoveKeys;
   private lookKeys!: Phaser.Types.Input.Keyboard.CursorKeys;
-  private monsters: Phaser.GameObjects.Rectangle[] = [];
+  private escapeKey!: Phaser.Input.Keyboard.Key;
+  private monsters: MonsterGameObject[] = [];
   private expOrbs: ExpOrb[] = [];
   private karmaOrbs: KarmaOrb[] = [];
+  private basicAttackProjectiles: BasicAttackProjectile[] = [];
+  private rockKarmaObjects: RockKarmaObject[] = [];
   private nextSpawnTimestamp = 0;
   private nextEliteSpawnElapsedMs = ELITE_MONSTER_START_MS;
   private nextPlayerHitTimestamp = 0;
@@ -246,6 +284,10 @@ export class StageScene extends Phaser.Scene {
   private playerInvulnerableUntil = 0;
   private playerKnockbackUntil = 0;
   private isLevelUpOpen = false;
+  private isKarmaSelectionOpen = false;
+  private isSettingsOpen = false;
+  private backgroundVolume = STAGE_MAIN_BATTLE_BGM_VOLUME;
+  private environmentVolume = STAGE_ENVIRONMENT_SOUND_VOLUME;
   private survivalStartTimestamp = 0;
   private survivalElapsedOffsetMs = 0;
   private nextBossTriggerElapsedMs = BOSS_APPEAR_INTERVAL_MS;
@@ -260,10 +302,30 @@ export class StageScene extends Phaser.Scene {
   private readonly progressionSystem = new ProgressionSystem();
   private readonly spawnSystem = new SpawnSystem();
   private readonly synergySystem = new SynergySystem();
+  private readonly karmaSystem = new KarmaSystem();
+  private readonly poolManager = PoolManager.getInstance();
   private readonly playerState: PlayerState = createInitialPlayerState(DEFAULT_PLAYER_CLASS_TYPE);
   private readonly selectedOptions: string[] = [];
   private readonly handleLevelUpSelected = (payload: { option: LevelUpOption }) => {
     this.applyLevelUpSelection(payload.option);
+  };
+  private readonly handleKarmaSelected = (payload: {
+    karmaElementId: KarmaElementId;
+    expValue: number;
+  }) => {
+    this.applyKarmaSelection(payload.karmaElementId, payload.expValue);
+  };
+  private readonly handleSettingsClosed = () => {
+    this.closeSettingsOverlay();
+  };
+  private readonly handleSettingsSoundChanged = (payload: {
+    backgroundVolume: number;
+    environmentVolume: number;
+  }) => {
+    this.applySoundSettings(payload.backgroundVolume, payload.environmentVolume);
+  };
+  private readonly handleSettingsRestartRequested = () => {
+    this.restartStageFromSettings();
   };
 
   constructor() {
@@ -295,16 +357,25 @@ export class StageScene extends Phaser.Scene {
     this.bossWarningUntilTimestamp = 0;
     this.survivalStartTimestamp = this.time.now;
     this.isLevelUpOpen = false;
+    this.isKarmaSelectionOpen = false;
     this.isBossWarningActive = false;
+    this.poolManager.clear();
+    this.stopMainBattleBgm();
     this.monsters = [];
     this.expOrbs = [];
     this.karmaOrbs = [];
+    this.basicAttackProjectiles.forEach((projectile) => {
+      projectile.body.destroy();
+    });
+    this.basicAttackProjectiles = [];
+    this.destroyRockKarmaObjects();
     this.bossWarningText?.destroy();
     this.bossWarningText = null;
 
     this.applyInitData();
     this.configureWorldAndCamera();
-    this.createParallaxLayers();
+    this.spawnSystem.preloadMonsterPool(this, this.poolManager, this.survivalElapsedOffsetMs);
+    this.createStageFloorLayer();
 
     const playerTextureKey = this.getPlayerStageTextureKey();
     const playerAnimationKey = this.getPlayerStageAnimationKey();
@@ -338,6 +409,7 @@ export class StageScene extends Phaser.Scene {
       right: Phaser.Input.Keyboard.KeyCodes.D,
     }) as MoveKeys;
     this.lookKeys = this.input.keyboard!.createCursorKeys();
+    this.escapeKey = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.ESC);
     this.timerText = this.add
       .text(STAGE_TIMER_X, STAGE_TIMER_Y, "", {
         fontSize: STAGE_TIMER_FONT_SIZE,
@@ -354,13 +426,26 @@ export class StageScene extends Phaser.Scene {
     this.updateMinimapMarkerAndRegion();
     this.emitPlayerStatsUpdated();
     this.emitPlayerKarmaUpdated();
+    this.playMainBattleBgm();
     this.emitDirectionIfChanged(true);
     this.updateHeadVisual();
 
     eventBus.on("levelup:selected", this.handleLevelUpSelected);
+    eventBus.on("karma:selected", this.handleKarmaSelected);
+    eventBus.on("settings:closed", this.handleSettingsClosed);
+    eventBus.on("settings:sound-changed", this.handleSettingsSoundChanged);
+    eventBus.on("settings:restart-requested", this.handleSettingsRestartRequested);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       eventBus.off("levelup:selected", this.handleLevelUpSelected);
+      eventBus.off("karma:selected", this.handleKarmaSelected);
+      eventBus.off("settings:closed", this.handleSettingsClosed);
+      eventBus.off("settings:sound-changed", this.handleSettingsSoundChanged);
+      eventBus.off("settings:restart-requested", this.handleSettingsRestartRequested);
       eventBus.emit("combat:target-updated", null);
+      eventBus.emit("karma:closed", undefined);
+      eventBus.emit("settings:closed", undefined);
+      this.stopMainBattleBgm();
+      this.destroyRockKarmaObjects();
     });
   }
 
@@ -411,7 +496,12 @@ export class StageScene extends Phaser.Scene {
    * @desc ?꾨젅?꾨쭏???앹〈 ?쒓컙, ?대룞, ?꾪닾, 蹂댁뒪 ?몃━嫄곕? 媛깆떊?쒕떎.
    */
   update() {
-    this.updateParallaxLayers();
+    this.handleSettingsInput();
+
+    if (this.isSettingsOpen) {
+      return;
+    }
+
     this.updateTimerText();
     this.updatePlayerHpBar();
     this.updateExpBar();
@@ -422,16 +512,19 @@ export class StageScene extends Phaser.Scene {
     this.updatePlayerSpriteFacing();
     this.emitDirectionIfChanged(false);
     this.updateHeadVisual();
+    this.updateRockKarmaObjects();
 
-    if (this.isLevelUpOpen) {
+    if (this.isLevelUpOpen || this.isKarmaSelectionOpen) {
       return;
     }
 
     this.updatePlayerMovement();
     this.updateMonsterMovement();
+    this.updateBasicAttackProjectiles();
     this.updateExpOrbs();
     this.updateKarmaOrbs();
     this.handleAutoSkill();
+    this.handleKarmaAutoSkills();
     this.spawnMonstersIfNeeded();
     this.handlePlayerCollisionDamage();
     this.handleExpBasedLevelUp();
@@ -499,8 +592,25 @@ export class StageScene extends Phaser.Scene {
     this.playerState.criticalChance = nextPlayerState.criticalChance;
     this.playerState.criticalDamageMultiplier = nextPlayerState.criticalDamageMultiplier;
     this.playerState.attackCount = nextPlayerState.attackCount;
+    this.playerState.basicAttackType = nextPlayerState.basicAttackType;
     this.playerState.statStacks = { ...nextPlayerState.statStacks };
     this.playerState.karmaCounts = { ...nextPlayerState.karmaCounts };
+    this.playerState.karmaBuild = { ...nextPlayerState.karmaBuild };
+    this.playerState.karmaElements = {
+      fire: { ...nextPlayerState.karmaElements.fire },
+      electric: { ...nextPlayerState.karmaElements.electric },
+      rock: { ...nextPlayerState.karmaElements.rock },
+    };
+    this.playerState.karmaSelection = {
+      selectedElementIds: [...nextPlayerState.karmaSelection.selectedElementIds],
+      maxSelectedElementCount: nextPlayerState.karmaSelection.maxSelectedElementCount,
+      pendingOptions: [...nextPlayerState.karmaSelection.pendingOptions],
+    };
+    this.playerState.karmaAutoSkills = {
+      fire: { ...nextPlayerState.karmaAutoSkills.fire },
+      electric: { ...nextPlayerState.karmaAutoSkills.electric },
+      rock: { ...nextPlayerState.karmaAutoSkills.rock },
+    };
     this.playerState.skills = nextPlayerState.skills.map((skill) => ({ ...skill }));
     this.playerState.passives = nextPlayerState.passives.map((passive) => ({ ...passive }));
   }
@@ -522,7 +632,17 @@ export class StageScene extends Phaser.Scene {
    */
   private emitPlayerKarmaUpdated() {
     eventBus.emit("player:karma-updated", {
-      karmaCounts: { ...this.playerState.karmaCounts },
+      karmaElements: {
+        fire: { ...this.playerState.karmaElements.fire },
+        electric: { ...this.playerState.karmaElements.electric },
+        rock: { ...this.playerState.karmaElements.rock },
+      },
+      karmaSelection: {
+        selectedElementIds: [...this.playerState.karmaSelection.selectedElementIds],
+        maxSelectedElementCount: this.playerState.karmaSelection.maxSelectedElementCount,
+        pendingOptions: [...this.playerState.karmaSelection.pendingOptions],
+      },
+      karmaSlotText: this.karmaSystem.createSlotText(this.playerState.karmaSelection),
     });
   }
 
@@ -537,47 +657,15 @@ export class StageScene extends Phaser.Scene {
   }
 
   /**
-   * @date 2026-04-27
-   * @desc 원경/중경/전경 타일 스프라이트를 생성해 패럴랙스 배경 레이어를 구성한다.
+   * @date 2026-04-29
+   * @desc 자유 이동 전투 월드를 덮는 단일 반복 바닥 타일 배경을 생성한다.
    */
-  private createParallaxLayers() {
-    this.parallaxFarLayer = this.add
-      .tileSprite(0, 0, GAME_WIDTH, GAME_HEIGHT, STAGE_PARALLAX_TEXTURE_KEYS.far)
+  private createStageFloorLayer() {
+    this.add
+      .tileSprite(0, 0, WORLD_WIDTH, WORLD_HEIGHT, STAGE_BACKGROUND_TEXTURE_KEYS.coreDebugTile)
       .setOrigin(0, 0)
-      .setScrollFactor(0)
+      .setScrollFactor(1)
       .setDepth(-60);
-
-    this.parallaxMidLayer = this.add
-      .tileSprite(0, 0, GAME_WIDTH, GAME_HEIGHT, STAGE_PARALLAX_TEXTURE_KEYS.mid)
-      .setOrigin(0, 0)
-      .setScrollFactor(0)
-      .setDepth(-50);
-
-    this.parallaxFrontLayer = this.add
-      .tileSprite(0, 0, GAME_WIDTH, GAME_HEIGHT, STAGE_PARALLAX_TEXTURE_KEYS.front)
-      .setOrigin(0, 0)
-      .setScrollFactor(0)
-      .setDepth(-40);
-  }
-
-  /**
-   * @date 2026-04-27
-   * @desc 카메라 스크롤 값을 기준으로 배경 레이어의 타일 오프셋을 갱신한다.
-   */
-  private updateParallaxLayers() {
-    if (!this.parallaxFarLayer || !this.parallaxMidLayer || !this.parallaxFrontLayer) {
-      return;
-    }
-
-    const camera = this.cameras.main;
-    this.parallaxFarLayer.tilePositionX = camera.scrollX * STAGE_PARALLAX_SCROLL_FACTORS.far.x;
-    this.parallaxFarLayer.tilePositionY = camera.scrollY * STAGE_PARALLAX_SCROLL_FACTORS.far.y;
-    this.parallaxMidLayer.tilePositionX = camera.scrollX * STAGE_PARALLAX_SCROLL_FACTORS.mid.x;
-    this.parallaxMidLayer.tilePositionY = camera.scrollY * STAGE_PARALLAX_SCROLL_FACTORS.mid.y;
-    this.parallaxFrontLayer.tilePositionX =
-      camera.scrollX * STAGE_PARALLAX_SCROLL_FACTORS.front.x;
-    this.parallaxFrontLayer.tilePositionY =
-      camera.scrollY * STAGE_PARALLAX_SCROLL_FACTORS.front.y;
   }
 
   /**
@@ -672,19 +760,29 @@ export class StageScene extends Phaser.Scene {
     }
 
     const playerBody = this.player.body as Phaser.Physics.Arcade.Body;
-    playerBody.setVelocity(0, 0);
+    const inputX = Number(this.moveKeys.right.isDown) - Number(this.moveKeys.left.isDown);
+    const inputY = Number(this.moveKeys.down.isDown) - Number(this.moveKeys.up.isDown);
+    const inputLength = Math.hypot(inputX, inputY);
 
-    if (this.moveKeys.left.isDown) {
-      playerBody.setVelocityX(-this.playerState.moveSpeed);
-    } else if (this.moveKeys.right.isDown) {
-      playerBody.setVelocityX(this.playerState.moveSpeed);
+    if (inputLength > 0) {
+      const targetVelocityX = (inputX / inputLength) * this.playerState.moveSpeed;
+      const targetVelocityY = (inputY / inputLength) * this.playerState.moveSpeed;
+      playerBody.setVelocity(
+        Phaser.Math.Linear(playerBody.velocity.x, targetVelocityX, PLAYER_ACCELERATION_LERP),
+        Phaser.Math.Linear(playerBody.velocity.y, targetVelocityY, PLAYER_ACCELERATION_LERP),
+      );
+      return;
     }
 
-    if (this.moveKeys.up.isDown) {
-      playerBody.setVelocityY(-this.playerState.moveSpeed);
-    } else if (this.moveKeys.down.isDown) {
-      playerBody.setVelocityY(this.playerState.moveSpeed);
+    const nextVelocityX = playerBody.velocity.x * PLAYER_DECELERATION_FACTOR;
+    const nextVelocityY = playerBody.velocity.y * PLAYER_DECELERATION_FACTOR;
+    const nextSpeed = Math.hypot(nextVelocityX, nextVelocityY);
+    if (nextSpeed <= PLAYER_STOP_SPEED_THRESHOLD) {
+      playerBody.setVelocity(0, 0);
+      return;
     }
+
+    playerBody.setVelocity(nextVelocityX, nextVelocityY);
   }
 
   /**
@@ -812,6 +910,10 @@ export class StageScene extends Phaser.Scene {
    */
   private updateMonsterMovement() {
     this.monsters.forEach((monster) => {
+      if (!monster.active) {
+        return;
+      }
+
       const monsterBody = monster.body as Phaser.Physics.Arcade.Body;
       const knockbackUntil = Number(monster.getData("knockbackUntil") ?? 0);
       if (this.time.now < knockbackUntil) {
@@ -840,10 +942,9 @@ export class StageScene extends Phaser.Scene {
       return;
     }
 
-    const targetMonsters = this.findNearestAttackTargets(
-      this.playerState.attackRange,
-      this.playerState.attackCount,
-    );
+    const targetCount =
+      this.playerState.basicAttackType === "multiHit" ? this.playerState.attackCount : 1;
+    const targetMonsters = this.findNearestAttackTargets(this.playerState.attackRange, targetCount);
     if (targetMonsters.length === 0) {
       return;
     }
@@ -852,9 +953,533 @@ export class StageScene extends Phaser.Scene {
     this.updateAutoSkillLookDirection(targetMonster);
     this.nextAutoSkillTimestamp =
       this.time.now + AUTO_SKILL_COOLDOWN_MS * this.playerState.cooldownMultiplier;
+    if (this.playerState.classType === "mage") {
+      this.fireMageBasicProjectile(targetMonster);
+      return;
+    }
+
+    if (this.playerState.classType === "archer") {
+      this.fireArcherBasicProjectile(targetMonster);
+      return;
+    }
+
     this.playAttackEffect();
+    this.playBasicAttackHitSound();
     targetMonsters.forEach((monster) => {
       this.damageMonster(monster, this.playerState.damage);
+    });
+  }
+
+  /**
+   * @date 2026-04-29
+   * @desc 마법사의 느린 에너지 볼트 기본 공격 발사체를 생성한다.
+   */
+  private fireMageBasicProjectile(targetMonster: MonsterGameObject) {
+    const projectile = this.add.circle(
+      this.player.x,
+      this.player.y,
+      MAGE_BASIC_PROJECTILE_RADIUS,
+      MAGE_BASIC_PROJECTILE_COLOR,
+      0.9,
+    );
+    projectile.setStrokeStyle(2, MAGE_BASIC_PROJECTILE_STROKE_COLOR, 0.95);
+    projectile.setDepth(BASIC_PROJECTILE_DEPTH);
+    this.basicAttackProjectiles.push({
+      body: projectile,
+      target: targetMonster,
+      damage: this.playerState.damage,
+      speed: MAGE_BASIC_PROJECTILE_SPEED,
+      hitRadius: MAGE_BASIC_PROJECTILE_HIT_RADIUS,
+      remainingDistance: this.playerState.attackRange,
+    });
+  }
+
+  /**
+   * @date 2026-04-29
+   * @desc 아처의 빠른 화살형 기본 공격 발사체를 생성한다.
+   */
+  private fireArcherBasicProjectile(targetMonster: MonsterGameObject) {
+    const angleRadian = Phaser.Math.Angle.Between(
+      this.player.x,
+      this.player.y,
+      targetMonster.x,
+      targetMonster.y,
+    );
+    const projectile = this.add.rectangle(
+      this.player.x,
+      this.player.y,
+      ARCHER_BASIC_PROJECTILE_WIDTH,
+      ARCHER_BASIC_PROJECTILE_HEIGHT,
+      ARCHER_BASIC_PROJECTILE_COLOR,
+      0.95,
+    );
+    projectile.setRotation(angleRadian);
+    projectile.setDepth(BASIC_PROJECTILE_DEPTH);
+    this.basicAttackProjectiles.push({
+      body: projectile,
+      target: targetMonster,
+      damage: this.playerState.damage,
+      speed: ARCHER_BASIC_PROJECTILE_SPEED,
+      hitRadius: ARCHER_BASIC_PROJECTILE_HIT_RADIUS,
+      remainingDistance: this.playerState.attackRange,
+    });
+  }
+
+  /**
+   * @date 2026-04-29
+   * @desc 기본 공격 발사체를 목표 방향으로 이동시키고 충돌 시 피해를 적용한다.
+   */
+  private updateBasicAttackProjectiles() {
+    const deltaSeconds = this.game.loop.delta / 1000;
+    this.basicAttackProjectiles.forEach((projectile) => {
+      if (!projectile.body.active) {
+        return;
+      }
+
+      if (!projectile.target.active) {
+        projectile.body.destroy();
+        return;
+      }
+
+      const distanceToTarget = Phaser.Math.Distance.Between(
+        projectile.body.x,
+        projectile.body.y,
+        projectile.target.x,
+        projectile.target.y,
+      );
+      if (distanceToTarget <= projectile.hitRadius) {
+        this.playBasicAttackHitSound();
+        this.damageMonster(projectile.target, projectile.damage);
+        projectile.body.destroy();
+        return;
+      }
+
+      const moveDistance = projectile.speed * deltaSeconds;
+      const angleRadian = Phaser.Math.Angle.Between(
+        projectile.body.x,
+        projectile.body.y,
+        projectile.target.x,
+        projectile.target.y,
+      );
+      projectile.body.x += Math.cos(angleRadian) * moveDistance;
+      projectile.body.y += Math.sin(angleRadian) * moveDistance;
+      projectile.body.setRotation(angleRadian);
+      projectile.remainingDistance -= moveDistance;
+
+      if (projectile.remainingDistance <= 0) {
+        projectile.body.destroy();
+      }
+    });
+    this.basicAttackProjectiles = this.basicAttackProjectiles.filter((projectile) => {
+      return projectile.body.active;
+    });
+  }
+
+  /**
+   * @date 2026-04-29
+   * @desc 선택된 카르마 자동 공격을 각 카르마 쿨다운에 맞춰 발동한다.
+   */
+  private handleKarmaAutoSkills() {
+    this.playerState.karmaSelection.selectedElementIds.forEach((karmaElementId) => {
+      if (karmaElementId === "rock") {
+        return;
+      }
+
+      const autoSkillState = this.playerState.karmaAutoSkills[karmaElementId];
+      autoSkillState.currentCooldownMs = this.karmaSystem.computeCurrentCooldown(
+        autoSkillState.baseCooldownMs,
+        this.playerState.cooldownMultiplier,
+      );
+      if (this.time.now < autoSkillState.nextCastAt) {
+        return;
+      }
+
+      const didCast = this.castKarmaAutoSkill(karmaElementId);
+      if (didCast) {
+        autoSkillState.nextCastAt = this.time.now + autoSkillState.currentCooldownMs;
+      }
+    });
+  }
+
+  /**
+   * @date 2026-04-29
+   * @desc 카르마 속성에 맞는 자동 공격 발동 함수를 호출한다.
+   */
+  private castKarmaAutoSkill(karmaElementId: KarmaElementId) {
+    if (karmaElementId === "electric") {
+      return this.castElectricKarmaSkill();
+    }
+
+    return this.castFireKarmaSkill();
+  }
+
+  /**
+   * @date 2026-04-29
+   * @desc 불꽃 카르마의 전방 범위 대상에게 데미지를 적용한다.
+   */
+  private castFireKarmaSkill() {
+    const autoSkillState = this.playerState.karmaAutoSkills.fire;
+    const targetMonsters = this.findFireKarmaTargets(autoSkillState.range, autoSkillState.hitCount);
+    if (targetMonsters.length === 0) {
+      return false;
+    }
+
+    this.playFireWhipEffect(autoSkillState.range, autoSkillState.hitboxRadius);
+    const damage = Math.round(this.playerState.damage * autoSkillState.damageMultiplier);
+    targetMonsters.forEach((monster) => {
+      this.damageMonster(monster, damage);
+    });
+    return true;
+  }
+
+  /**
+   * @date 2026-04-29
+   * @desc 전기 카르마의 체인 대상에게 순서대로 데미지를 적용한다.
+   */
+  private castElectricKarmaSkill() {
+    const autoSkillState = this.playerState.karmaAutoSkills.electric;
+    const targetMonsters = this.findElectricKarmaTargets(
+      autoSkillState.range,
+      autoSkillState.hitboxRadius,
+      autoSkillState.hitCount,
+    );
+    if (targetMonsters.length === 0) {
+      return false;
+    }
+
+    const firstMonster = targetMonsters[0];
+    this.updateAutoSkillLookDirection(firstMonster);
+    this.playElectricChainEffect(targetMonsters);
+    const damage = Math.round(this.playerState.damage * autoSkillState.damageMultiplier);
+    targetMonsters.forEach((monster) => {
+      this.damageMonster(monster, damage);
+    });
+    return true;
+  }
+
+  /**
+   * @date 2026-04-29
+   * @desc 불꽃 카르마의 전방 각도와 범위 안에 있는 피격 대상을 반환한다.
+   */
+  private findFireKarmaTargets(attackRange: number, targetCount: number) {
+    return this.monsters
+      .map((monster) => {
+        const deltaX = monster.x - this.player.x;
+        const deltaY = monster.y - this.player.y;
+        const distance = Math.hypot(deltaX, deltaY);
+        if (distance > attackRange || distance <= 0) {
+          return null;
+        }
+
+        const normalizedX = deltaX / distance;
+        const normalizedY = deltaY / distance;
+        const directionDot = normalizedX * this.lookDirection.x + normalizedY * this.lookDirection.y;
+        if (directionDot < 0.35) {
+          return null;
+        }
+
+        return { monster, distance };
+      })
+      .filter((candidate): candidate is { monster: MonsterGameObject; distance: number } => {
+        return candidate !== null;
+      })
+      .sort((leftCandidate, rightCandidate) => leftCandidate.distance - rightCandidate.distance)
+      .slice(0, targetCount)
+      .map((candidate) => candidate.monster);
+  }
+
+  /**
+   * @date 2026-04-29
+   * @desc 전기 카르마의 첫 대상과 체인 대상을 중복 없이 반환한다.
+   */
+  private findElectricKarmaTargets(
+    firstRange: number,
+    chainRange: number,
+    chainCount: number,
+  ) {
+    const selectedMonsters: MonsterGameObject[] = [];
+    const firstMonster = this.findNearestMonsterFromPoint(this.player.x, this.player.y, firstRange, []);
+    if (!firstMonster) {
+      return selectedMonsters;
+    }
+
+    selectedMonsters.push(firstMonster);
+    while (selectedMonsters.length < chainCount) {
+      const previousMonster = selectedMonsters[selectedMonsters.length - 1];
+      const nextMonster = this.findNearestMonsterFromPoint(
+        previousMonster.x,
+        previousMonster.y,
+        chainRange,
+        selectedMonsters,
+      );
+      if (!nextMonster) {
+        break;
+      }
+
+      selectedMonsters.push(nextMonster);
+    }
+
+    return selectedMonsters;
+  }
+
+  /**
+   * @date 2026-04-29
+   * @desc 바위 카르마 오브젝트를 선택 상태와 레벨에 맞춰 회전, 충돌, 재생성 처리한다.
+   */
+  private updateRockKarmaObjects() {
+    const hasRockKarma = this.playerState.karmaSelection.selectedElementIds.includes("rock");
+    if (!hasRockKarma) {
+      this.destroyRockKarmaObjects();
+      return;
+    }
+
+    const autoSkillState = this.playerState.karmaAutoSkills.rock;
+    autoSkillState.currentCooldownMs = this.karmaSystem.computeCurrentCooldown(
+      autoSkillState.baseCooldownMs,
+      this.playerState.cooldownMultiplier,
+    );
+    this.syncRockKarmaObjectCount(autoSkillState.hitCount);
+    const rotationBase = this.time.now * 0.0032;
+    this.rockKarmaObjects.forEach((rockKarmaObject, rockIndex) => {
+      if (!rockKarmaObject.isActive) {
+        this.tryRespawnRockKarmaObject(rockKarmaObject, autoSkillState.range, rotationBase);
+        return;
+      }
+
+      this.positionRockKarmaObject(rockKarmaObject, autoSkillState.range, rotationBase);
+      this.handleRockKarmaCollision(rockKarmaObject, autoSkillState, rockIndex);
+    });
+  }
+
+  /**
+   * @date 2026-04-29
+   * @desc 바위 카르마 레벨에 맞춰 회전 바위 오브젝트 개수를 동기화한다.
+   */
+  private syncRockKarmaObjectCount(targetCount: number) {
+    while (this.rockKarmaObjects.length < targetCount) {
+      this.rockKarmaObjects.push(this.createRockKarmaObject(this.rockKarmaObjects.length));
+    }
+
+    while (this.rockKarmaObjects.length > targetCount) {
+      const rockKarmaObject = this.rockKarmaObjects.pop();
+      rockKarmaObject?.body.destroy();
+    }
+  }
+
+  /**
+   * @date 2026-04-29
+   * @desc 회전 바위 오브젝트 1개를 생성한다.
+   */
+  private createRockKarmaObject(rockIndex: number): RockKarmaObject {
+    const rock = this.add.circle(this.player.x, this.player.y, 10, 0xa16207, 1);
+    rock.setStrokeStyle(2, 0xfde68a, 0.9);
+    rock.setDepth(24);
+    return {
+      body: rock,
+      angleOffset: rockIndex * ((Math.PI * 2) / Math.max(1, this.playerState.karmaAutoSkills.rock.hitCount)),
+      isActive: true,
+      respawnAt: 0,
+    };
+  }
+
+  /**
+   * @date 2026-04-29
+   * @desc 비활성 바위가 재생성 시간이 지났으면 다시 활성화한다.
+   */
+  private tryRespawnRockKarmaObject(
+    rockKarmaObject: RockKarmaObject,
+    orbitRange: number,
+    rotationBase: number,
+  ) {
+    if (this.time.now < rockKarmaObject.respawnAt) {
+      return;
+    }
+
+    rockKarmaObject.isActive = true;
+    rockKarmaObject.body.setVisible(true);
+    rockKarmaObject.body.setAlpha(1);
+    this.positionRockKarmaObject(rockKarmaObject, orbitRange, rotationBase);
+    this.showKarmaPulse(rockKarmaObject.body.x, rockKarmaObject.body.y, 16, 0xa16207);
+  }
+
+  /**
+   * @date 2026-04-29
+   * @desc 바위 오브젝트를 플레이어 주변 궤도 위치로 이동한다.
+   */
+  private positionRockKarmaObject(
+    rockKarmaObject: RockKarmaObject,
+    orbitRange: number,
+    rotationBase: number,
+  ) {
+    const angle = rotationBase + rockKarmaObject.angleOffset;
+    rockKarmaObject.body.x = this.player.x + Math.cos(angle) * orbitRange;
+    rockKarmaObject.body.y = this.player.y + Math.sin(angle) * orbitRange;
+  }
+
+  /**
+   * @date 2026-04-29
+   * @desc 바위 오브젝트별 독립 충돌 판정을 처리하고 충돌 시 비활성화한다.
+   */
+  private handleRockKarmaCollision(
+    rockKarmaObject: RockKarmaObject,
+    autoSkillState: KarmaAutoSkillState,
+    rockIndex: number,
+  ) {
+    const targetMonster = this.findNearestMonsterFromPoint(
+      rockKarmaObject.body.x,
+      rockKarmaObject.body.y,
+      autoSkillState.hitboxRadius,
+      [],
+    );
+    if (!targetMonster) {
+      return;
+    }
+
+    const damage = Math.round(this.playerState.damage * autoSkillState.damageMultiplier);
+    this.showKarmaPulse(rockKarmaObject.body.x, rockKarmaObject.body.y, 24, 0xa16207);
+    this.damageMonster(targetMonster, damage);
+    rockKarmaObject.isActive = false;
+    rockKarmaObject.respawnAt = this.time.now + autoSkillState.currentCooldownMs;
+    rockKarmaObject.body.setVisible(false);
+    rockKarmaObject.angleOffset += 0.18 + rockIndex * 0.03;
+  }
+
+  /**
+   * @date 2026-04-29
+   * @desc 생성된 바위 카르마 오브젝트를 모두 제거한다.
+   */
+  private destroyRockKarmaObjects() {
+    this.rockKarmaObjects.forEach((rockKarmaObject) => {
+      rockKarmaObject.body.destroy();
+    });
+    this.rockKarmaObjects = [];
+  }
+
+  /**
+   * @date 2026-04-29
+   * @desc 기준 좌표 주변에서 제외 목록에 없는 가장 가까운 몬스터를 반환한다.
+   */
+  private findNearestMonsterFromPoint(
+    worldX: number,
+    worldY: number,
+    searchRange: number,
+    excludedMonsters: MonsterGameObject[],
+  ) {
+    let nearestMonster: MonsterGameObject | null = null;
+    let nearestDistance = Number.POSITIVE_INFINITY;
+    this.monsters.forEach((monster) => {
+      if (!monster.active || excludedMonsters.includes(monster)) {
+        return;
+      }
+
+      const distance = Phaser.Math.Distance.Between(worldX, worldY, monster.x, monster.y);
+      if (distance <= searchRange && distance < nearestDistance) {
+        nearestMonster = monster;
+        nearestDistance = distance;
+      }
+    });
+
+    return nearestMonster;
+  }
+
+  /**
+   * @date 2026-04-29
+   * @desc 불꽃 카르마의 채찍 타격 범위를 전방 부채꼴 형태로 표시한다.
+   */
+  private playFireWhipEffect(attackRange: number, hitboxRadius: number) {
+    const directionAngle = Math.atan2(this.lookDirection.y, this.lookDirection.x);
+    const effect = this.add.graphics();
+    effect.setDepth(23);
+    effect.fillStyle(0xef4444, 0.18);
+    effect.lineStyle(5, 0xf97316, 0.92);
+
+    const leftAngle = directionAngle - 0.48;
+    const rightAngle = directionAngle + 0.48;
+    const startX = this.player.x + this.lookDirection.x * 24;
+    const startY = this.player.y + this.lookDirection.y * 24;
+    const leftX = this.player.x + Math.cos(leftAngle) * attackRange;
+    const leftY = this.player.y + Math.sin(leftAngle) * attackRange;
+    const rightX = this.player.x + Math.cos(rightAngle) * attackRange;
+    const rightY = this.player.y + Math.sin(rightAngle) * attackRange;
+    const centerX = this.player.x + this.lookDirection.x * attackRange;
+    const centerY = this.player.y + this.lookDirection.y * attackRange;
+
+    effect.beginPath();
+    effect.moveTo(startX, startY);
+    effect.lineTo(leftX, leftY);
+    effect.lineTo(centerX, centerY);
+    effect.lineTo(rightX, rightY);
+    effect.closePath();
+    effect.fillPath();
+    effect.strokePath();
+    effect.lineStyle(2, 0xfef3c7, 0.85);
+    effect.strokeCircle(centerX, centerY, Math.max(12, hitboxRadius * 0.32));
+
+    this.tweens.add({
+      targets: effect,
+      alpha: 0,
+      scaleX: 1.08,
+      scaleY: 1.08,
+      duration: 140,
+      onComplete: () => {
+        effect.destroy();
+      },
+    });
+  }
+
+  /**
+   * @date 2026-04-29
+   * @desc 전기 카르마의 체인 경로를 대상 사이 번개 선으로 표시한다.
+   */
+  private playElectricChainEffect(targetMonsters: MonsterGameObject[]) {
+    const effect = this.add.graphics();
+    effect.setDepth(23);
+    effect.lineStyle(4, 0xfacc15, 0.96);
+
+    let previousX = this.player.x;
+    let previousY = this.player.y;
+    targetMonsters.forEach((monster) => {
+      effect.lineBetween(previousX, previousY, monster.x, monster.y);
+      effect.fillStyle(0xfef08a, 0.95);
+      effect.fillCircle(monster.x, monster.y, 8);
+      previousX = monster.x;
+      previousY = monster.y;
+    });
+
+    effect.lineStyle(1, 0xffffff, 0.75);
+    previousX = this.player.x;
+    previousY = this.player.y;
+    targetMonsters.forEach((monster) => {
+      effect.lineBetween(previousX, previousY, monster.x, monster.y);
+      previousX = monster.x;
+      previousY = monster.y;
+    });
+
+    this.tweens.add({
+      targets: effect,
+      alpha: 0,
+      duration: 130,
+      onComplete: () => {
+        effect.destroy();
+      },
+    });
+  }
+
+  /**
+   * @date 2026-04-29
+   * @desc 카르마 범위 발동을 짧은 원형 이펙트로 표시한다.
+   */
+  private showKarmaPulse(worldX: number, worldY: number, radius: number, color: number) {
+    const pulse = this.add.circle(worldX, worldY, radius, color, 0.16);
+    pulse.setDepth(18);
+    this.tweens.add({
+      targets: pulse,
+      scale: 1.35,
+      alpha: 0,
+      duration: 180,
+      onComplete: () => {
+        pulse.destroy();
+      },
     });
   }
 
@@ -862,7 +1487,7 @@ export class StageScene extends Phaser.Scene {
    * @date 2026-04-28
    * @desc 자동 스킬 대상 방향으로 플레이어 시선 벡터를 갱신한다.
    */
-  private updateAutoSkillLookDirection(targetMonster: Phaser.GameObjects.Rectangle) {
+  private updateAutoSkillLookDirection(targetMonster: MonsterGameObject) {
     const deltaX = targetMonster.x - this.player.x;
     const deltaY = targetMonster.y - this.player.y;
     const distance = Math.hypot(deltaX, deltaY) || 1;
@@ -874,7 +1499,7 @@ export class StageScene extends Phaser.Scene {
    * @date 2026-04-28
    * @desc 몬스터에게 데미지와 넉백, 처치 보상을 적용한다.
    */
-  private damageMonster(targetMonster: Phaser.GameObjects.Rectangle, baseDamage: number) {
+  private damageMonster(targetMonster: MonsterGameObject, baseDamage: number) {
     const currentHp = Number(targetMonster.getData("hp") ?? 0);
     const maxHp = Number(targetMonster.getData("maxHp") ?? currentHp);
     const targetName = String(targetMonster.getData("name") ?? "Monster");
@@ -895,15 +1520,123 @@ export class StageScene extends Phaser.Scene {
     if (nextHp <= 0) {
       const expReward = Number(targetMonster.getData("expReward") ?? 1);
       const monsterGrade = String(targetMonster.getData("grade") ?? "normal");
-      this.dropExpOrbs(targetMonster.x, targetMonster.y, expReward);
-      this.dropKarmaOrb(targetMonster.x, targetMonster.y, monsterGrade);
       const isBoss = Boolean(targetMonster.getData("isBoss"));
-      targetMonster.destroy();
+      this.dropExpOrbs(targetMonster.x, targetMonster.y, expReward);
+      this.dropKarmaOrb(targetMonster.x, targetMonster.y, isBoss ? "boss" : monsterGrade);
+      this.spawnSystem.releaseMonster(this.poolManager, targetMonster);
       this.monsters = this.monsters.filter((monster) => monster.active);
       if (isBoss) {
         this.handleBossDefeated();
       }
     }
+  }
+
+  /**
+   * @date 2026-04-29
+   * @desc 기본 평타 명중 사운드를 재생한다.
+   */
+  private playBasicAttackHitSound() {
+    this.sound.play(BASIC_ATTACK_SOUND_KEYS.hit, {
+      volume: BASIC_ATTACK_HIT_SOUND_VOLUME * this.environmentVolume,
+    });
+  }
+
+  /**
+   * @date 2026-04-29
+   * @desc 스테이지 메인 전투 BGM을 반복 재생한다.
+   */
+  private playMainBattleBgm() {
+    this.stopMainBattleBgm();
+    this.mainBattleBgm = this.sound.add(STAGE_BGM_SOUND_KEYS.mainBattle, {
+      loop: true,
+      volume: this.backgroundVolume,
+    }) as VolumeAdjustableSound;
+    this.mainBattleBgm.play();
+  }
+
+  /**
+   * @date 2026-04-29
+   * @desc 스테이지 전투 BGM 재생을 중지하고 사운드 인스턴스를 정리한다.
+   */
+  private stopMainBattleBgm() {
+    if (!this.mainBattleBgm) {
+      return;
+    }
+
+    this.mainBattleBgm.stop();
+    this.mainBattleBgm.destroy();
+    this.mainBattleBgm = null;
+  }
+
+  /**
+   * @date 2026-04-29
+   * @desc ESC 입력으로 설정창을 열고 전투 화면을 정지한다.
+   */
+  private handleSettingsInput() {
+    if (!this.escapeKey || !Phaser.Input.Keyboard.JustDown(this.escapeKey)) {
+      return;
+    }
+
+    if (this.isLevelUpOpen || this.isKarmaSelectionOpen || this.isSettingsOpen) {
+      return;
+    }
+
+    this.openSettingsOverlay();
+  }
+
+  /**
+   * @date 2026-04-29
+   * @desc 설정창 상태로 전환하고 물리와 씬 타이머를 일시정지한다.
+   */
+  private openSettingsOverlay() {
+    this.isSettingsOpen = true;
+    this.physics.world.pause();
+    this.time.paused = true;
+    eventBus.emit("settings:opened", {
+      backgroundVolume: this.backgroundVolume,
+      environmentVolume: this.environmentVolume,
+    });
+  }
+
+  /**
+   * @date 2026-04-29
+   * @desc 설정창을 닫고 일시정지된 전투 화면을 재개한다.
+   */
+  private closeSettingsOverlay() {
+    if (!this.isSettingsOpen) {
+      return;
+    }
+
+    this.isSettingsOpen = false;
+    this.time.paused = false;
+    this.physics.world.resume();
+  }
+
+  /**
+   * @date 2026-04-29
+   * @desc 설정창에서 변경한 배경음과 환경음 볼륨을 현재 씬 사운드에 반영한다.
+   */
+  private applySoundSettings(backgroundVolume: number, environmentVolume: number) {
+    this.backgroundVolume = Phaser.Math.Clamp(backgroundVolume, 0, 1);
+    this.environmentVolume = Phaser.Math.Clamp(environmentVolume, 0, 1);
+
+    if (this.mainBattleBgm) {
+      this.mainBattleBgm.setVolume(this.backgroundVolume);
+    }
+  }
+
+  /**
+   * @date 2026-04-29
+   * @desc 설정창에서 재시작 요청을 받으면 현재 스테이지를 초기 상태로 다시 시작한다.
+   */
+  private restartStageFromSettings() {
+    this.isSettingsOpen = false;
+    this.time.paused = false;
+    this.physics.world.resume();
+    eventBus.emit("settings:closed", undefined);
+    this.scene.restart({
+      playerClassType: this.playerState.classType,
+    });
   }
 
   /**
@@ -1014,7 +1747,7 @@ export class StageScene extends Phaser.Scene {
 
   /**
    * @date 2026-04-28
-   * @desc 경험치 구슬을 거리 비례 속도로 플레이어 방향으로 이동시킨다.
+   * @desc 경험치 구슬을 획득 반경 기준 자석 속도로 플레이어 방향으로 이동시킨다.
    */
   private moveExpOrbTowardPlayer(
     expOrb: ExpOrb,
@@ -1024,8 +1757,9 @@ export class StageScene extends Phaser.Scene {
     const distance = Math.max(distanceToPlayer, 0.0001);
     const directionX = (this.player.x - expOrb.x) / distance;
     const directionY = (this.player.y - expOrb.y) / distance;
+    const attractionDistance = Math.max(distance, this.playerState.pickupRadius);
     const moveSpeed = Phaser.Math.Clamp(
-      distance * EXP_ORB_MOVE_SPEED_FACTOR,
+      attractionDistance * EXP_ORB_MOVE_SPEED_FACTOR,
       EXP_ORB_MIN_MOVE_SPEED,
       EXP_ORB_MAX_MOVE_SPEED,
     );
@@ -1047,10 +1781,14 @@ export class StageScene extends Phaser.Scene {
 
   /**
    * @date 2026-04-28
-   * @desc 몬스터 처치 위치에 드랍 정책에 맞는 카르마 구슬 1개를 생성한다.
+   * @desc 몬스터 처치 위치에 드랍률 정책에 맞는 카르마 선택 구슬을 생성한다.
    */
   private dropKarmaOrb(worldX: number, worldY: number, monsterGrade: string) {
-    const karmaId = this.pickDroppedKarmaId(monsterGrade);
+    const typedMonsterGrade = this.normalizeKarmaDropGrade(monsterGrade);
+    if (Math.random() > this.karmaSystem.getDropRate(typedMonsterGrade)) {
+      return;
+    }
+
     const scatterAngle = Phaser.Math.FloatBetween(0, Math.PI * 2);
     const scatterDistance = Phaser.Math.FloatBetween(0, KARMA_ORB_SCATTER_RADIUS);
     const orbX = Phaser.Math.Clamp(
@@ -1064,54 +1802,44 @@ export class StageScene extends Phaser.Scene {
       WORLD_HEIGHT - KARMA_ORB_RADIUS,
     );
 
-    this.createKarmaOrb(orbX, orbY, karmaId);
+    this.createKarmaOrb(orbX, orbY, this.karmaSystem.getDropExpValue(typedMonsterGrade));
   }
 
   /**
-   * @date 2026-04-28
-   * @desc 몬스터 등급과 확률에 따라 드랍할 카르마 타입을 결정한다.
+   * @date 2026-04-29
+   * @desc 카르마 드랍 보상 계산에 사용할 몬스터 등급을 정규화한다.
    */
-  private pickDroppedKarmaId(monsterGrade: string): KarmaId {
-    if (monsterGrade === "elite") {
-      return "transformShard";
+  private normalizeKarmaDropGrade(monsterGrade: string): MonsterGrade | "boss" {
+    if (monsterGrade === "boss") {
+      return "boss";
     }
 
-    if (Math.random() > KARMA_BASIC_DROP_RATE) {
-      return "transformShard";
+    if (monsterGrade === "elite" || monsterGrade === "enhanced") {
+      return monsterGrade;
     }
 
-    return this.pickBasicKarmaId();
-  }
-
-  /**
-   * @date 2026-04-28
-   * @desc 기본 카르마 6종 중 하나를 무작위로 반환한다.
-   */
-  private pickBasicKarmaId(): BasicKarmaId {
-    const karmaIds: BasicKarmaId[] = ["fire", "water", "wind", "rock", "dark", "holy"];
-    const selectedIndex = Phaser.Math.Between(0, karmaIds.length - 1);
-    return karmaIds[selectedIndex];
+    return "normal";
   }
 
   /**
    * @date 2026-04-28
    * @desc 카르마 구슬을 생성하고 흡수 상태 데이터를 초기화한다.
    */
-  private createKarmaOrb(worldX: number, worldY: number, karmaId: KarmaId) {
-    const karmaOrb = this.add.circle(worldX, worldY, KARMA_ORB_RADIUS, KARMA_COLOR_BY_ID[karmaId]);
-    karmaOrb.setStrokeStyle(KARMA_ORB_STROKE_WIDTH, KARMA_ORB_STROKE_COLOR);
+  private createKarmaOrb(worldX: number, worldY: number, expValue: number) {
+    const karmaOrb = this.add.sprite(worldX, worldY, KARMA_TEXTURE_KEYS.orb);
+    karmaOrb.setDisplaySize(KARMA_ORB_DISPLAY_SIZE, KARMA_ORB_DISPLAY_SIZE);
+    karmaOrb.setTint(0xf472b6);
     karmaOrb.setDepth(KARMA_ORB_DEPTH);
-    karmaOrb.setData("karmaId", karmaId);
+    karmaOrb.setData("expValue", expValue);
     karmaOrb.setData("isAttracting", false);
     this.karmaOrbs.push(karmaOrb);
   }
 
   /**
    * @date 2026-04-28
-   * @desc 카르마 구슬의 획득 반경 진입 후 끊기지 않는 자석 흡수를 갱신한다.
+   * @desc 카르마 구슬을 플레이어 직접 근접 획득 방식으로 갱신한다.
    */
   private updateKarmaOrbs() {
-    const deltaSeconds = this.game.loop.delta / 1000;
     this.karmaOrbs.forEach((karmaOrb) => {
       if (!karmaOrb.active) {
         return;
@@ -1123,69 +1851,78 @@ export class StageScene extends Phaser.Scene {
         karmaOrb.x,
         karmaOrb.y,
       );
-      const isAttracting = Boolean(karmaOrb.getData("isAttracting"));
 
-      if (isAttracting && distanceToPlayer <= KARMA_ORB_ABSORB_DISTANCE) {
+      if (distanceToPlayer <= KARMA_ORB_ABSORB_DISTANCE) {
         this.absorbKarmaOrb(karmaOrb);
-        return;
       }
-
-      if (!isAttracting && distanceToPlayer > this.playerState.pickupRadius) {
-        return;
-      }
-
-      karmaOrb.setData("isAttracting", true);
-      this.moveKarmaOrbTowardPlayer(karmaOrb, distanceToPlayer, deltaSeconds);
     });
     this.karmaOrbs = this.karmaOrbs.filter((karmaOrb) => karmaOrb.active);
   }
 
   /**
-   * @date 2026-04-28
-   * @desc 카르마 구슬을 거리 비례 속도로 플레이어 방향으로 이동시킨다.
-   */
-  private moveKarmaOrbTowardPlayer(
-    karmaOrb: KarmaOrb,
-    distanceToPlayer: number,
-    deltaSeconds: number,
-  ) {
-    const distance = Math.max(distanceToPlayer, 0.0001);
-    const directionX = (this.player.x - karmaOrb.x) / distance;
-    const directionY = (this.player.y - karmaOrb.y) / distance;
-    const moveSpeed = Phaser.Math.Clamp(
-      distance * KARMA_ORB_MOVE_SPEED_FACTOR,
-      KARMA_ORB_MIN_MOVE_SPEED,
-      KARMA_ORB_MAX_MOVE_SPEED,
-    );
-
-    karmaOrb.x += directionX * moveSpeed * deltaSeconds;
-    karmaOrb.y += directionY * moveSpeed * deltaSeconds;
-  }
-
-  /**
-   * @date 2026-04-28
-   * @desc 카르마 구슬을 보유량으로 전환하고 HUD 갱신 이벤트를 발행한다.
+   * @date 2026-04-29
+   * @desc 카르마 구슬을 선택 후보 UI로 전환한다.
    */
   private absorbKarmaOrb(karmaOrb: KarmaOrb) {
-    const karmaId = String(karmaOrb.getData("karmaId") ?? "fire") as KarmaId;
-    if (!this.canCollectKarma(karmaId)) {
-      karmaOrb.destroy();
-      return;
-    }
-
-    this.playerState.karmaCounts[karmaId] += 1;
+    const expValue = Number(karmaOrb.getData("expValue") ?? 1);
+    const options = this.karmaSystem.pickKarmaOptions(this.playerState.karmaSelection);
+    this.playerState.karmaSelection.pendingOptions = options;
+    this.isKarmaSelectionOpen = true;
     karmaOrb.destroy();
     this.emitPlayerKarmaUpdated();
+    eventBus.emit("karma:options-shown", { options, expValue });
+  }
+
+  /**
+   * @date 2026-04-29
+   * @desc 선택한 카르마 속성에 경험치를 반영하고 레벨업 결과를 HUD에 발행한다.
+   */
+  private applyKarmaSelection(karmaElementId: KarmaElementId, expValue: number) {
+    this.playerState.karmaSelection = this.karmaSystem.applyKarmaSelection(
+      this.playerState.karmaSelection,
+      karmaElementId,
+    );
+    const grantResult = this.karmaSystem.grantKarmaExp(
+      this.playerState.karmaElements,
+      this.playerState.karmaAutoSkills,
+      karmaElementId,
+      expValue,
+      this.playerState.classType,
+    );
+    this.playerState.karmaCounts[karmaElementId] += expValue;
+    this.isKarmaSelectionOpen = false;
+    eventBus.emit("karma:closed", undefined);
+    this.emitPlayerKarmaUpdated();
+    if (grantResult.leveledUp) {
+      this.showKarmaRejectText(
+        this.player.x,
+        this.player.y - 42,
+        `카르마 Lv.${grantResult.element.level}`,
+      );
+    }
   }
 
   /**
    * @date 2026-04-28
-   * @desc 카르마 타입별 보유 제한에 따라 획득 가능 여부를 판단한다.
+   * @desc 카르마 획득 불가 사유를 짧은 필드 텍스트로 표시한다.
    */
-  private canCollectKarma(karmaId: KarmaId) {
-    const maxCount =
-      karmaId === "transformShard" ? KARMA_TRANSFORM_SHARD_MAX_COUNT : KARMA_BASIC_MAX_COUNT;
-    return this.playerState.karmaCounts[karmaId] < maxCount;
+  private showKarmaRejectText(worldX: number, worldY: number, message: string) {
+    const rejectText = this.add.text(worldX, worldY - 18, message, {
+      fontSize: "13px",
+      color: "#f9a8d4",
+      stroke: "#2e1065",
+      strokeThickness: 3,
+    });
+    rejectText.setOrigin(0.5, 0.5);
+    this.tweens.add({
+      targets: rejectText,
+      y: worldY - 36,
+      alpha: 0,
+      duration: 420,
+      onComplete: () => {
+        rejectText.destroy();
+      },
+    });
   }
 
   /**
@@ -1215,7 +1952,7 @@ export class StageScene extends Phaser.Scene {
           distance,
         };
       })
-      .filter((candidate): candidate is { monster: Phaser.GameObjects.Rectangle; distance: number } => {
+      .filter((candidate): candidate is { monster: MonsterGameObject; distance: number } => {
         return candidate !== null;
       });
 
@@ -1245,6 +1982,8 @@ export class StageScene extends Phaser.Scene {
         this.player.x,
         this.player.y,
         survivalElapsedMs,
+        undefined,
+        this.poolManager,
       );
       this.monsters.push(monster);
     }
@@ -1267,6 +2006,7 @@ export class StageScene extends Phaser.Scene {
       this.player.y,
       survivalElapsedMs,
       "elite",
+      this.poolManager,
     );
     this.monsters.push(eliteMonster);
     this.nextEliteSpawnElapsedMs = this.computeNextEliteSpawnElapsedMs(survivalElapsedMs);
@@ -1324,12 +2064,12 @@ export class StageScene extends Phaser.Scene {
    */
   private getCollisionDamage() {
     let highestDamage = 0;
-    let sourceMonster: Phaser.GameObjects.Rectangle | null = null;
+    let sourceMonster: MonsterGameObject | null = null;
 
     this.monsters.forEach((monster) => {
       const isColliding =
         Phaser.Math.Distance.Between(this.player.x, this.player.y, monster.x, monster.y) <=
-        PLAYER_COLLISION_RADIUS;
+        this.computeKarmaAdjustedCollisionRadius();
       if (!isColliding) {
         return;
       }
@@ -1352,10 +2092,18 @@ export class StageScene extends Phaser.Scene {
   }
 
   /**
+   * @date 2026-04-29
+   * @desc 플레이어 기본 피격 판정 반경을 반환한다.
+   */
+  private computeKarmaAdjustedCollisionRadius() {
+    return PLAYER_COLLISION_RADIUS;
+  }
+
+  /**
    * @date 2026-04-27
    * @desc 플레이어 공격 적중 시 대상 몬스터에 짧은 넉백을 적용한다.
    */
-  private applyMonsterKnockback(monster: Phaser.GameObjects.Rectangle) {
+  private applyMonsterKnockback(monster: MonsterGameObject) {
     const monsterBody = monster.body as Phaser.Physics.Arcade.Body;
     monsterBody.setVelocity(
       this.lookDirection.x * MONSTER_KNOCKBACK_FORCE,
@@ -1368,7 +2116,7 @@ export class StageScene extends Phaser.Scene {
    * @date 2026-04-27
    * @desc 플레이어 피격 시 충돌 몬스터 반대 방향으로 넉백을 적용한다.
    */
-  private applyPlayerKnockback(sourceMonster: Phaser.GameObjects.Rectangle) {
+  private applyPlayerKnockback(sourceMonster: MonsterGameObject) {
     const playerBody = this.player.body as Phaser.Physics.Arcade.Body;
     const deltaX = this.player.x - sourceMonster.x;
     const deltaY = this.player.y - sourceMonster.y;
@@ -1514,15 +2262,7 @@ export class StageScene extends Phaser.Scene {
 
     const bossData = this.getBossData();
     const spawnPosition = this.computeBossSpawnPosition();
-    const bossMonster = this.add.rectangle(
-      spawnPosition.x,
-      spawnPosition.y,
-      BOSS_STAGE_WIDTH,
-      BOSS_STAGE_HEIGHT,
-      BOSS_STAGE_COLOR,
-    );
-    bossMonster.setDepth(BOSS_STAGE_DEPTH);
-    this.physics.add.existing(bossMonster);
+    const bossMonster = this.createStageBossGameObject(spawnPosition.x, spawnPosition.y, bossData);
 
     const bossBody = bossMonster.body as Phaser.Physics.Arcade.Body;
     bossBody.setCollideWorldBounds(true);
@@ -1542,6 +2282,32 @@ export class StageScene extends Phaser.Scene {
       hp: maxHp,
       maxHp,
     });
+  }
+
+  /**
+   * @date 2026-04-29
+   * @desc 보스 데이터에 에셋 키가 있으면 스프라이트로, 없으면 기존 색상 박스로 생성한다.
+   */
+  private createStageBossGameObject(worldX: number, worldY: number, bossData: BossData) {
+    if (!bossData.textureKey) {
+      const bossRectangle = this.add.rectangle(
+        worldX,
+        worldY,
+        BOSS_STAGE_WIDTH,
+        BOSS_STAGE_HEIGHT,
+        BOSS_STAGE_COLOR,
+      );
+      bossRectangle.setDepth(BOSS_STAGE_DEPTH);
+      this.physics.add.existing(bossRectangle);
+      return bossRectangle;
+    }
+
+    const bossSprite = this.physics.add.sprite(worldX, worldY, bossData.textureKey);
+    bossSprite.setDisplaySize(BOSS_STAGE_WIDTH, BOSS_STAGE_HEIGHT);
+    bossSprite.setDepth(BOSS_STAGE_DEPTH);
+    const bossBody = bossSprite.body as Phaser.Physics.Arcade.Body;
+    bossBody.setSize(BOSS_STAGE_WIDTH * 0.72, BOSS_STAGE_HEIGHT * 0.78);
+    return bossSprite;
   }
 
   /**
@@ -1567,6 +2333,7 @@ export class StageScene extends Phaser.Scene {
     const bossData = bosses[0] as Partial<BossData> | undefined;
     return {
       name: String(bossData?.name ?? "Boss"),
+      textureKey: bossData?.textureKey ? String(bossData.textureKey) : undefined,
       maxHp: Number(bossData?.maxHp ?? BOSS_DEFAULT_MAX_HP),
       damage: Number(bossData?.damage ?? 12),
       moveSpeed: Number(bossData?.moveSpeed ?? 90),

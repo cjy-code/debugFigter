@@ -1,13 +1,15 @@
 [
   {
     "name": "Memory Leak Slime",
+    "textureKey": "monster-memory-leak-slime",
     "maxHp": 35,
     "damage": 5,
     "moveSpeed": 120,
     "expCoefficient": 1.2
   },
   {
-    "name": "Null Bug",
+    "name": "Null Slime",
+    "textureKey": "monster-null-slime",
     "maxHp": 25,
     "damage": 4,
     "moveSpeed": 140,

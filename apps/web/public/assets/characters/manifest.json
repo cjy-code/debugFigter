@@ -3,10 +3,7 @@
   "style": "bit-crayon-paperdoll",
   "source": {
     "type": "single-board-extraction",
-    "status": "provisional"
-  },
-  "reference": {
-    "conceptBoard": "/assets/characters/_reference/bit-crayon-paperdoll-concept.png"
+    "status": "runtime-ready"
   },
   "classes": {
     "warrior": {
